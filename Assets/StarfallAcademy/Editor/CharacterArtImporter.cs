@@ -1,0 +1,53 @@
+using UnityEditor;
+using UnityEngine;
+
+namespace StarfallAcademy.Lobby.Editor
+{
+    // 이 폴더에 넣은 캐릭터 이미지는 Portrait/Gacha Art 필드에서 바로 선택할 수 있게 합니다.
+    public sealed class CharacterArtImporter : AssetPostprocessor
+    {
+        const string CharacterArtFolder = "Assets/StarfallAcademy/Arts/Characters/";
+
+        [InitializeOnLoadMethod]
+        static void ScheduleImportCheck()
+        {
+            EditorApplication.delayCall += EnsureCharacterArtSettings;
+        }
+
+        [MenuItem("Starfall Academy/Reimport Character Art")]
+        static void ReimportCharacterArt()
+        {
+            string[] guids = AssetDatabase.FindAssets("t:Texture2D", new[] { CharacterArtFolder });
+            foreach (string guid in guids)
+                AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
+            AssetDatabase.Refresh();
+        }
+
+        static void EnsureCharacterArtSettings()
+        {
+            string[] guids = AssetDatabase.FindAssets("t:Texture2D", new[] { CharacterArtFolder });
+            foreach (string guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (AssetImporter.GetAtPath(path) is not TextureImporter importer) continue;
+                if (importer.textureType == TextureImporterType.Sprite &&
+                    importer.spriteImportMode == SpriteImportMode.Single) continue;
+                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            }
+        }
+
+        void OnPreprocessTexture()
+        {
+            if (!assetPath.Replace('\\', '/').StartsWith(CharacterArtFolder)) return;
+            TextureImporter importer = (TextureImporter)assetImporter;
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.mipmapEnabled = false;
+            importer.alphaIsTransparency = true;
+            importer.npotScale = TextureImporterNPOTScale.None;
+            importer.maxTextureSize = 4096;
+            importer.filterMode = FilterMode.Bilinear;
+            importer.wrapMode = TextureWrapMode.Clamp;
+        }
+    }
+}

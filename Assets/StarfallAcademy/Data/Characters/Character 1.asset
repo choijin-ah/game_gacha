@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ac7c66f8d07436240bead683476b22e5, type: 3}
+  m_Name: Character 1
+  m_EditorClassIdentifier: Assembly-CSharp::StarfallAcademy.Lobby.CharacterData
+  characterId: d64512338e924438917a2e82ec3901c8
+  displayName: "\uD1A0\uB07C"
+  affiliation: "\uC18C\uC18D \uBBF8\uC815"
+  description: 
+  portrait: {fileID: 21300000, guid: 1f7362f3cb30c224ca3af8513eef1381, type: 3}
+  gachaArt: {fileID: 21300000, guid: 1f7362f3cb30c224ca3af8513eef1381, type: 3}
+  accentColor: {r: 0.38, g: 0.85, b: 1, a: 1}
+  role: 0
+  attackType: 0
+  rarity: 5
+  level: 1
+  combatPower: 1000

@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1045 &1
+EditorBuildSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Scenes:
+  - enabled: 1
+    path: Assets/StarfallAcademy/Scenes/Lobby.unity
+    guid: d48d3cf9721d4f7ba6412ed99a0564b1
+  - enabled: 1
+    path: Assets/StarfallAcademy/Scenes/Formation.unity
+    guid: 8afbd24c7f3cdff4988cb3ec2eb592dc
+  - enabled: 1
+    path: Assets/StarfallAcademy/Scenes/Gacha.unity
+    guid: baa2fd6040c7b8e4697f0c03044bfda9
+  - enabled: 1
+    path: Assets/StarfallAcademy/Scenes/CharacterArchive.unity
+    guid: 4d8c9f4b10ef63e4f8465bf23e5ee9da
+  - enabled: 1
+    path: Assets/StarfallAcademy/Scenes/StageSelect.unity
+    guid: c672943fa81df354690f7a26db4a1e40
+  - enabled: 1
+    path: Assets/StarfallAcademy/Scenes/TurnBattle.unity
+    guid: 63b75b2e6a8f88e4f853c10c09aeb8f4
+  m_configObjects:
+    com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
+    com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
