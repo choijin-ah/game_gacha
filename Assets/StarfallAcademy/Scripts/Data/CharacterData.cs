@@ -29,7 +29,7 @@ namespace StarfallAcademy.Lobby
         Eclipse = 4
     }
 
-    [CreateAssetMenu(fileName = "Character", menuName = "Starfall Academy/Character Data")]
+    [CreateAssetMenu(fileName = "Character", menuName = "Starfall/Character Data")]
     public sealed class CharacterData : ScriptableObject
     {
         [Header("Identity")]

@@ -1,8 +1,8 @@
-# Starfall Academy 화면 구조
+# Starfall 화면 구조
 
 로비는 `Scenes/Lobby.unity`에서 실행됩니다. Unity에서 이 씬을 열고 Play 하세요.
-캐릭터 도감, 편성, 모집, 스테이지 선택, 턴제 전투는 각각
-`CharacterArchive.unity`, `Formation.unity`, `Gacha.unity`, `StageSelect.unity`, `TurnBattle.unity` 독립 씬으로 이동합니다.
+캐릭터 도감, 편성, 모집, 상점, 스테이지 선택, 턴제 전투는 각각
+`CharacterArchive.unity`, `Formation.unity`, `Gacha.unity`, `Shop.unity`, `StageSelect.unity`, `TurnBattle.unity` 독립 씬으로 이동합니다.
 
 Unity 에디터에서는 어떤 씬을 편집 중이든 Play를 누르면 항상 `Lobby.unity`에서 시작합니다.
 Play를 정지하면 원래 편집하던 씬으로 돌아옵니다.
@@ -23,6 +23,7 @@ Play를 정지하면 원래 편집하던 씬으로 돌아옵니다.
 - 보유·레벨·스킬 성장 저장: `Scripts/CharacterArchive/CharacterProgressionService.cs`
 - 기본 스킬 아이콘 아틀라스: `Resources/CharacterArchive/UI/default_skill_icons_v1.png`
 - 가챠 화면: `Scripts/Gacha/GachaScreen.cs`
+- 상점 화면: `Scripts/Shop/ShopScreen.cs`
 - 가챠 공용 색상·테두리: `Scripts/Gacha/GachaGothicStyle.cs`
 - 픽업 목록·모집 버튼·결과창: `Scripts/Gacha/Views/`
 - 픽업·확률 데이터: `Resources/Data/GachaConfig.asset`
@@ -42,7 +43,7 @@ Play를 정지하면 원래 편집하던 씬으로 돌아옵니다.
 
 ```text
 StarfallAcademy/
-├─ Scenes/                 Lobby·Archive·Formation·Gacha·StageSelect·TurnBattle 독립 씬
+├─ Scenes/                 Lobby·Archive·Formation·Gacha·Shop·StageSelect·TurnBattle 독립 씬
 ├─ Resources/Lobby/Art/    런타임에서 읽는 로비 원화
 ├─ Resources/Lobby/UI/     AI 생성 버튼·심플 아이콘 PNG 아틀라스
 ├─ Resources/Data/         캐릭터·가챠·스테이지 런타임 데이터베이스
@@ -56,6 +57,7 @@ StarfallAcademy/
 │  ├─ CharacterArchive/    캐릭터 도감 목록과 상세 정보
 │  ├─ Gacha/               픽업 선택·뽑기·결과 화면
 │  ├─ Settings/            음량·그래픽·텍스트·자동 전투 설정
+│  ├─ Shop/                무료 테스트 상품과 상점 화면
 │  ├─ UI/                  테마와 UI 생성 공통 코드
 │  │  └─ Components/       말풍선·팝업·토스트·버튼 효과
 │  └─ Views/               로비 화면 영역별 레이아웃
@@ -73,7 +75,7 @@ StarfallAcademy/
 
 ## 캐릭터 추가 방법
 
-1. Unity 상단 메뉴에서 `Starfall Academy > Character Database`를 엽니다.
+1. Unity 상단 메뉴에서 `Starfall > Character Database`를 엽니다.
 2. `＋ 새 캐릭터`를 누릅니다.
 3. 오른쪽 상세 영역에서 이름, 소속, 역할, 레어도, 레벨, 전투력을 입력합니다.
 4. `Portrait`에는 Texture Type이 `Sprite (2D and UI)`인 초상화 이미지를 넣습니다.
@@ -84,21 +86,28 @@ StarfallAcademy/
 캐릭터 ID에 따라 기본 아이콘 5종 중 하나가 자동으로 배정됩니다.
 
 가챠에서 처음 획득한 캐릭터만 보유 상태가 되며, 도감은 보유 캐릭터를 위에,
-미보유 캐릭터를 잠금 상태로 아래에 표시합니다. 레벨업은 크레딧, 스킬 강화는 별의 결정을 소비합니다.
+미보유 캐릭터를 잠금 상태로 아래에 표시합니다. 레벨업은 크레딧, 스킬 강화는 스킬 코어를 소비합니다.
+
+로비와 모집 화면의 `별의 결정`은 같은 `PremiumCurrency` 지갑을 사용합니다.
+모집을 실행하면 로비에 표시되는 별의 결정도 같은 값으로 차감됩니다.
+로비 상단의 별의 결정을 누르면 모집 화면으로 이동합니다.
 
 초상화가 없어도 이름 첫 글자로 임시 카드가 표시됩니다. 캐릭터 ID는 생성 툴이 자동으로 발급하므로 직접 바꿀 필요가 없습니다.
 
 ## 씬 다시 만들기
 
 씬 파일을 실수로 삭제했거나 초기화하려면 Unity 메뉴에서
-`Starfall Academy > Rebuild Lobby Scene` 또는 `Rebuild Formation Scene`을 실행하세요.
+`Starfall > Rebuild Lobby Scene` 또는 `Rebuild Formation Scene`을 실행하세요.
 
-도감 씬은 `Starfall Academy > Rebuild Character Archive Scene`으로 다시 만들 수 있습니다.
+도감 씬은 `Starfall > Rebuild Character Archive Scene`으로 다시 만들 수 있습니다.
 
-가챠 픽업과 확률은 `Starfall Academy > Gacha Configuration`에서 수정하고,
-가챠 씬은 `Starfall Academy > Rebuild Gacha Scene`으로 다시 만들 수 있습니다.
+가챠 픽업과 확률은 `Starfall > Gacha Configuration`에서 수정하고,
+가챠 씬은 `Starfall > Rebuild Gacha Scene`으로 다시 만들 수 있습니다.
 
-스테이지 데이터는 `Starfall Academy > Stage Database`에서 열 수 있습니다.
+상점 씬은 `Starfall > Rebuild Shop Scene`으로 다시 만들 수 있습니다.
+현재는 횟수 제한 없이 별의 결정 1,600개를 무료로 받는 개발용 상품 하나만 제공합니다.
+
+스테이지 데이터는 `Starfall > Stage Database`에서 열 수 있습니다.
 목록의 각 `StageData` 에셋을 선택하면 적 이름·수·레벨·체력·공격력·권장 전투력·보상을 수정할 수 있습니다.
 스테이지 선택/턴제 전투 씬은 각각 `Rebuild Stage Select Scene`, `Rebuild Turn Battle Scene`으로 재생성합니다.
 

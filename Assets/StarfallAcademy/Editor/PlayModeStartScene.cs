@@ -12,7 +12,7 @@ namespace StarfallAcademy.Lobby.Editor
             EditorApplication.delayCall += Configure;
         }
 
-        [MenuItem("Starfall Academy/Use Lobby As Play Start")]
+        [MenuItem("Starfall/Use Lobby As Play Start")]
         public static void Configure()
         {
             SceneBuildSettingsUtility.Update();
@@ -20,7 +20,7 @@ namespace StarfallAcademy.Lobby.Editor
             if (lobby == null) return;
 
             EditorSceneManager.playModeStartScene = lobby;
-            Debug.Log("[Starfall Academy] Play Mode start scene: Lobby");
+            Debug.Log("[Starfall] Play Mode start scene: Lobby");
         }
     }
 }

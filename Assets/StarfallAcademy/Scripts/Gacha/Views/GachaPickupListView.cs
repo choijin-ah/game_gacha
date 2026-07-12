@@ -45,8 +45,7 @@ namespace StarfallAcademy.Lobby
 
             Image viewportImage = ui.CreateImage("Pickup Viewport", panel, Color.clear,
                 new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(0, -66), new Vector2(394, 640), true);
-            Mask mask = viewportImage.gameObject.AddComponent<Mask>();
-            mask.showMaskGraphic = false;
+            viewportImage.gameObject.AddComponent<RectMask2D>();
 
             var contentObject = new GameObject("Pickup Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
             contentObject.transform.SetParent(viewportImage.transform, false);
@@ -85,9 +84,11 @@ namespace StarfallAcademy.Lobby
             }
 
             if (validPickups.Count == 0)
-                ui.CreateText("Empty Pickup", "등록된 5★ 픽업 캐릭터가 없습니다.\n\nStarfall Academy > Gacha Configuration\n에서 픽업을 추가하세요.",
+                ui.CreateText("Empty Pickup", "등록된 5★ 픽업 캐릭터가 없습니다.\n\nStarfall > Gacha Configuration\n에서 픽업을 추가하세요.",
                     content, 16, FontStyle.Normal, ui.Theme.Muted, new Vector2(.5f, 1), new Vector2(.5f, 1),
                     new Vector2(0, -100), new Vector2(350, 150), TextAnchor.MiddleCenter);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(content);
+            scroll.verticalNormalizedPosition = 1f;
         }
 
         void CreatePickupCard(RectTransform parent, CharacterData character)

@@ -14,7 +14,7 @@ namespace StarfallAcademy.Lobby.Editor
             EditorApplication.delayCall += EnsureCharacterArtSettings;
         }
 
-        [MenuItem("Starfall Academy/Reimport Character Art")]
+        [MenuItem("Starfall/Reimport Character Art")]
         static void ReimportCharacterArt()
         {
             string[] guids = AssetDatabase.FindAssets("t:Texture2D", new[] { CharacterArtFolder });

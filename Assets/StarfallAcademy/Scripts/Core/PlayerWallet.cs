@@ -8,6 +8,8 @@ namespace StarfallAcademy.Lobby
         const string PremiumCurrencyKey = "StarfallAcademy.PremiumCurrency";
         const string CreditsKey = "StarfallAcademy.Credits";
         const string SkillMaterialsKey = "StarfallAcademy.SkillMaterials";
+        public const string PremiumCurrencyDisplayName = "별의 결정";
+        public const string SkillMaterialDisplayName = "스킬 코어";
         public const int DefaultPremiumCurrency = 12800;
         public const int DefaultCredits = 8632100;
         public const int DefaultSkillMaterials = 2450;
@@ -37,7 +39,8 @@ namespace StarfallAcademy.Lobby
 
         public static void AddPremiumCurrency(int amount)
         {
-            PlayerPrefs.SetInt(PremiumCurrencyKey, Mathf.Max(0, PremiumCurrency + amount));
+            long next = (long)PremiumCurrency + amount;
+            PlayerPrefs.SetInt(PremiumCurrencyKey, ClampWalletValue(next));
             PlayerPrefs.Save();
         }
 
@@ -65,8 +68,15 @@ namespace StarfallAcademy.Lobby
 
         static void Add(string key, int defaultValue, int amount)
         {
-            PlayerPrefs.SetInt(key, Mathf.Max(0, GetOrCreate(key, defaultValue) + amount));
+            long next = (long)GetOrCreate(key, defaultValue) + amount;
+            PlayerPrefs.SetInt(key, ClampWalletValue(next));
             PlayerPrefs.Save();
+        }
+
+        static int ClampWalletValue(long value)
+        {
+            if (value <= 0) return 0;
+            return value >= int.MaxValue ? int.MaxValue : (int)value;
         }
     }
 }

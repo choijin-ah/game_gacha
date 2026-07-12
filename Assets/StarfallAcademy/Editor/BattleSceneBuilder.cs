@@ -12,7 +12,7 @@ namespace StarfallAcademy.Lobby.Editor
         public const string ScenePath = "Assets/StarfallAcademy/Scenes/StageSelect.unity";
         static StageSelectSceneBuilder() => EditorApplication.delayCall += Ensure;
 
-        [MenuItem("Starfall Academy/Rebuild Stage Select Scene")]
+        [MenuItem("Starfall/Rebuild Stage Select Scene")]
         public static void Create() => BattleSceneBuilderUtility.CreateScene<StageSelectSceneEntry>(
             ScenePath, "Stage Select Scene Entry");
 
@@ -26,7 +26,7 @@ namespace StarfallAcademy.Lobby.Editor
         public const string ScenePath = "Assets/StarfallAcademy/Scenes/TurnBattle.unity";
         static TurnBattleSceneBuilder() => EditorApplication.delayCall += Ensure;
 
-        [MenuItem("Starfall Academy/Rebuild Turn Battle Scene")]
+        [MenuItem("Starfall/Rebuild Turn Battle Scene")]
         public static void Create() => BattleSceneBuilderUtility.CreateScene<TurnBattleSceneEntry>(
             ScenePath, "Turn Battle Scene Entry");
 
@@ -46,7 +46,7 @@ namespace StarfallAcademy.Lobby.Editor
             SceneBuildSettingsUtility.Update();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[Starfall Academy] Battle scene created: " + path);
+            Debug.Log("[Starfall] Battle scene created: " + path);
         }
 
         internal static void EnsureScene<T>(string path, string entryName) where T : Component

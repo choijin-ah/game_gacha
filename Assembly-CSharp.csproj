@@ -100,6 +100,8 @@
     <Compile Include="Assets\StarfallAcademy\Scripts\Views\LobbyHeaderView.cs" />
     <Compile Include="Assets\StarfallAcademy\Scripts\Settings\GameAudioChannel.cs" />
     <Compile Include="Assets\StarfallAcademy\Scripts\Views\GothicLobbyView.cs" />
+    <Compile Include="Assets\StarfallAcademy\Scripts\Shop\ShopScreen.cs" />
+    <Compile Include="Assets\StarfallAcademy\Scripts\Shop\ShopSceneEntry.cs" />
     <Compile Include="Assets\StarfallAcademy\Scripts\Data\LobbyContent.cs" />
     <Compile Include="Assets\StarfallAcademy\Scripts\Battle\Data\StageDatabase.cs" />
     <Compile Include="Assets\StarfallAcademy\Scripts\UI\LobbyUiFactory.cs" />

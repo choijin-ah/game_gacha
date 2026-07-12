@@ -71,7 +71,7 @@ namespace StarfallAcademy.Lobby
             speech.Initialize(overlayRoot, ui, toast);
 
             GothicLobbyView.Build(safeRoot, ui, OpenCharacterArchive, OpenFormation, OpenGacha,
-                OpenStageSelect, settings.Open, OpenPopup, toast.Show);
+                OpenShop, OpenStageSelect, settings.Open, OpenPopup, toast.Show);
             overlayRoot.SetAsLastSibling();
         }
 
@@ -79,8 +79,6 @@ namespace StarfallAcademy.Lobby
         {
             ui.CreateImage("Monochrome Grade", root, new Color(.05f, .045f, .07f, .28f),
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            ui.CreateImage("Left Vignette", root, new Color(.005f, .006f, .01f, .64f),
-                Vector2.zero, new Vector2(.21f, 1), Vector2.zero, Vector2.zero);
             ui.CreateImage("Right Vignette", root, new Color(.005f, .006f, .01f, .42f),
                 new Vector2(.66f, 0), Vector2.one, Vector2.zero, Vector2.zero);
             ui.CreateImage("Bottom Vignette", root, new Color(.005f, .006f, .01f, .38f),
@@ -94,6 +92,7 @@ namespace StarfallAcademy.Lobby
             SceneManager.LoadScene(SceneNames.Formation);
         }
         void OpenGacha() => SceneManager.LoadScene(SceneNames.Gacha);
+        void OpenShop() => SceneManager.LoadScene(SceneNames.Shop);
         void OpenCharacterArchive() => SceneManager.LoadScene(SceneNames.CharacterArchive);
         void OpenStageSelect() => SceneManager.LoadScene(SceneNames.StageSelect);
 

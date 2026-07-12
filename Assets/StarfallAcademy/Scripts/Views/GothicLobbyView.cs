@@ -18,13 +18,13 @@ namespace StarfallAcademy.Lobby
         const float RightWidth = 560f;
 
         public static void Build(RectTransform root, LobbyUiFactory ui, Action openCharacterArchive,
-            Action openFormation, Action openGacha, Action openStageSelect, Action openSettings,
+            Action openFormation, Action openGacha, Action openShop, Action openStageSelect, Action openSettings,
             Action<string, string> openPopup, Action<string> showToast)
         {
             BuildProfile(root, ui, openPopup);
-            BuildCurrencies(root, ui, openSettings, openPopup);
+            BuildCurrencies(root, ui, openGacha, openSettings, openPopup);
             BuildStoryBanner(root, ui, openPopup);
-            BuildQuickCards(root, ui, openCharacterArchive, openFormation, openPopup);
+            BuildQuickCards(root, ui, openCharacterArchive, openFormation, openShop, openPopup);
             BuildBattleArea(root, ui, openGacha, openStageSelect, openPopup);
             BuildSocialButtons(root, ui, openPopup, showToast);
         }
@@ -85,27 +85,31 @@ namespace StarfallAcademy.Lobby
             return null;
         }
 
-        static void BuildCurrencies(RectTransform root, LobbyUiFactory ui, Action openSettings,
-            Action<string, string> openPopup)
+        static void BuildCurrencies(RectTransform root, LobbyUiFactory ui, Action openGacha,
+            Action openSettings, Action<string, string> openPopup)
         {
             RectTransform top = ui.CreateImage("Top Utilities", root, new Color(.005f, .005f, .008f, .38f),
                 new Vector2(1, 1), new Vector2(1, 1), new Vector2(-445, -45), new Vector2(810, 66)).rectTransform;
             string[] values =
             {
-                PlayerWallet.PremiumCurrency.ToString("N0"),
                 PlayerWallet.SkillMaterials.ToString("N0"),
+                PlayerWallet.PremiumCurrency.ToString("N0"),
                 PlayerWallet.Credits.ToString("N0")
             };
             string[] symbols = { "◇", "♦", "●" };
-            string[] titles = { "청휘석", "별의 결정", "크레딧" };
+            string[] titles = { PlayerWallet.SkillMaterialDisplayName,
+                PlayerWallet.PremiumCurrencyDisplayName, "크레딧" };
             float[] x = { -315, -126, 85 };
             float[] widths = { 176, 176, 210 };
             for (int i = 0; i < values.Length; i++)
             {
                 int index = i;
+                Action action = i == 1
+                    ? openGacha
+                    : () => openPopup(titles[index], "보유 " + titles[index] + "  " + values[index]);
                 GameObject currency = ui.CreateButton("Currency " + titles[i], top, new Vector2(.5f, .5f),
                     new Vector2(x[i], 0), new Vector2(widths[i], 48), symbols[i] + "   " + values[i] + "   +", 17,
-                    Panel, () => openPopup(titles[index], "보유 " + titles[index] + "  " + values[index]),
+                    Panel, action,
                     TextAnchor.MiddleCenter, false);
                 AddBorder(ui, currency.GetComponent<RectTransform>());
             }
@@ -151,7 +155,7 @@ namespace StarfallAcademy.Lobby
         }
 
         static void BuildQuickCards(RectTransform root, LobbyUiFactory ui, Action openCharacterArchive,
-            Action openFormation, Action<string, string> openPopup)
+            Action openFormation, Action openShop, Action<string, string> openPopup)
         {
             string[] korean = { "캐릭터", "편성", "가방", "상점" };
             string[] english = { "CHARACTER", "FORMATION", "INVENTORY", "SHOP" };
@@ -161,6 +165,7 @@ namespace StarfallAcademy.Lobby
                 int index = i;
                 Action action = i == 0 ? openCharacterArchive : i == 1
                     ? openFormation
+                    : i == 3 ? openShop
                     : () => openPopup(korean[index], korean[index] + " 화면은 추후 독립 씬으로 연결할 수 있습니다.");
                 GameObject card = CreateCard(ui, root, "Quick " + korean[i], new Vector2(1, 1),
                     new Vector2(-534.5f + i * 143f, -469), new Vector2(131, 170),

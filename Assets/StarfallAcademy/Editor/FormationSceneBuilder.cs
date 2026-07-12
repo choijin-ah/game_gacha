@@ -17,7 +17,7 @@ namespace StarfallAcademy.Lobby.Editor
             EditorApplication.delayCall += EnsureSceneExists;
         }
 
-        [MenuItem("Starfall Academy/Rebuild Formation Scene")]
+        [MenuItem("Starfall/Rebuild Formation Scene")]
         public static void Create()
         {
             if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
@@ -37,7 +37,7 @@ namespace StarfallAcademy.Lobby.Editor
             SceneBuildSettingsUtility.Update();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[Starfall Academy] Formation scene created: " + ScenePath);
+            Debug.Log("[Starfall] Formation scene created: " + ScenePath);
         }
 
         static void EnsureSceneExists()
@@ -74,7 +74,7 @@ namespace StarfallAcademy.Lobby.Editor
             SceneBuildSettingsUtility.Update();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[Starfall Academy] Formation scene created automatically: " + ScenePath);
+            Debug.Log("[Starfall] Formation scene created automatically: " + ScenePath);
         }
     }
 
@@ -87,6 +87,7 @@ namespace StarfallAcademy.Lobby.Editor
                 LobbySceneBuilder.ScenePath,
                 FormationSceneBuilder.ScenePath,
                 GachaSceneBuilder.ScenePath,
+                ShopSceneBuilder.ScenePath,
                 CharacterArchiveSceneBuilder.ScenePath,
                 StageSelectSceneBuilder.ScenePath,
                 TurnBattleSceneBuilder.ScenePath

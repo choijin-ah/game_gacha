@@ -80,7 +80,7 @@ namespace StarfallAcademy.Lobby
 
             int cost = count == 1 ? config.SinglePullCost : config.TenPullCost;
             if (!PlayerWallet.TrySpendPremiumCurrency(cost))
-                return GachaPullResponse.Failed("청휘석이 부족합니다");
+                return GachaPullResponse.Failed(PlayerWallet.PremiumCurrencyDisplayName + "이 부족합니다");
 
             var results = new List<GachaResult>(count);
             bool hasFourStarOrHigher = false;

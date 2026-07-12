@@ -12,12 +12,12 @@ namespace StarfallAcademy.Lobby
                 new Vector2(0, 1), Vector2.one, Vector2.zero, new Vector2(0, 96)).rectTransform;
             ui.CreateText("Game Title", "✦  STARFALL", bar, 30, FontStyle.Bold, ui.Theme.White,
                 new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(154, 0), new Vector2(270, 60), TextAnchor.MiddleLeft);
-            ui.CreateText("Game Subtitle", "ACADEMY", bar, 14, FontStyle.Bold, ui.Theme.Cyan,
-                new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(286, -3), new Vector2(120, 50), TextAnchor.MiddleLeft);
 
             string premiumCurrency = PlayerWallet.PremiumCurrency.ToString("N0");
-            CreateCurrency(ui, bar, new Vector2(-604, 0), new Vector2(188, 52), "◈  " + premiumCurrency, ui.Theme.Cyan,
-                () => openPopup("청휘석", "보유 청휘석  " + premiumCurrency + "개\n\n모집과 상점에서 사용할 수 있습니다."));
+            CreateCurrency(ui, bar, new Vector2(-604, 0), new Vector2(188, 52), "♦  " + premiumCurrency, ui.Theme.Cyan,
+                () => openPopup(PlayerWallet.PremiumCurrencyDisplayName,
+                    "보유 " + PlayerWallet.PremiumCurrencyDisplayName + "  " + premiumCurrency +
+                    "개\n\n모집과 상점에서 사용할 수 있습니다."));
             CreateCurrency(ui, bar, new Vector2(-404, 0), new Vector2(176, 52), "●  82,500", ui.Theme.Gold,
                 () => openPopup("크레딧", "보유 크레딧  82,500\n\n학생 성장과 장비 강화에 사용됩니다."));
             GameObject mail = ui.CreateButton("Open Mail", bar, new Vector2(1, .5f), new Vector2(-196, 0), new Vector2(56, 56),

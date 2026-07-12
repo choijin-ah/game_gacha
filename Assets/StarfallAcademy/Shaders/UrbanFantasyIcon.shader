@@ -1,4 +1,4 @@
-Shader "Starfall Academy/UI Monochrome"
+Shader "Starfall/UI Monochrome"
 {
     Properties
     {

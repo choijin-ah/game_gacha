@@ -17,7 +17,7 @@ namespace StarfallAcademy.Lobby.Editor
 
         static void EnsureOnLoad() => EnsureDefaults();
 
-        [MenuItem("Starfall Academy/Stage Database")]
+        [MenuItem("Starfall/Stage Database")]
         public static void Open()
         {
             StageDatabase database = EnsureDefaults();

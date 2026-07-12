@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace StarfallAcademy.Lobby
 {
-    [CreateAssetMenu(fileName = "Stage", menuName = "Starfall Academy/Battle Stage")]
+    [CreateAssetMenu(fileName = "Stage", menuName = "Starfall/Battle Stage")]
     public sealed class StageData : ScriptableObject
     {
         [Header("Identity")]

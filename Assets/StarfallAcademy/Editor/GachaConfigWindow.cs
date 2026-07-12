@@ -34,7 +34,7 @@ namespace StarfallAcademy.Lobby.Editor
         CharacterData pendingPickup;
         Vector2 scroll;
 
-        [MenuItem("Starfall Academy/Gacha Configuration")]
+        [MenuItem("Starfall/Gacha Configuration")]
         public static void Open()
         {
             var window = GetWindow<GachaConfigWindow>("Gacha Configuration");
@@ -172,7 +172,8 @@ namespace StarfallAcademy.Lobby.Editor
             if (invalidPickup) EditorGUILayout.HelpBox("픽업 목록에는 5★ 이상 캐릭터만 등록하세요.", MessageType.Error);
             EditorGUILayout.LabelField("선택 픽업 절대 확률",
                 config.EffectiveSelectedPickupRatePercent.ToString("0.###") + "%");
-            EditorGUILayout.LabelField("현재 초기 재화", PlayerWallet.DefaultPremiumCurrency.ToString("N0"));
+            EditorGUILayout.LabelField(PlayerWallet.PremiumCurrencyDisplayName + " 초기 지급량",
+                PlayerWallet.DefaultPremiumCurrency.ToString("N0"));
             EditorGUILayout.EndVertical();
         }
 

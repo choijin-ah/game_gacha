@@ -10,7 +10,7 @@ namespace StarfallAcademy.Lobby.Editor
     {
         public const string ScenePath = "Assets/StarfallAcademy/Scenes/Lobby.unity";
 
-        [MenuItem("Starfall Academy/Rebuild Lobby Scene")]
+        [MenuItem("Starfall/Rebuild Lobby Scene")]
         public static void Create()
         {
             if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
@@ -30,7 +30,7 @@ namespace StarfallAcademy.Lobby.Editor
             SceneBuildSettingsUtility.Update();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[Starfall Academy] Lobby scene created: " + ScenePath);
+            Debug.Log("[Starfall] Lobby scene created: " + ScenePath);
         }
     }
 }

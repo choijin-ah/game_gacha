@@ -100,7 +100,7 @@ namespace StarfallAcademy.Lobby
             int cost = GetSkillUpCost(character);
             if (!PlayerWallet.TrySpendSkillMaterials(cost))
             {
-                message = "별의 결정이 부족합니다";
+                message = PlayerWallet.SkillMaterialDisplayName + "가 부족합니다";
                 return false;
             }
             PlayerPrefs.SetInt(SkillLevelPrefix + character.Id, level + 1);

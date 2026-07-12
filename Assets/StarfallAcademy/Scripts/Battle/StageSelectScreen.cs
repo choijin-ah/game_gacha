@@ -150,8 +150,7 @@ namespace StarfallAcademy.Lobby
             Image viewportImage = ui.CreateImage("Stage Viewport", panel, Color.clear,
                 new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(0, -35),
                 new Vector2(488, 660), true);
-            Mask mask = viewportImage.gameObject.AddComponent<Mask>();
-            mask.showMaskGraphic = false;
+            viewportImage.gameObject.AddComponent<RectMask2D>();
             var contentObject = new GameObject("Stage Content", typeof(RectTransform),
                 typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
             contentObject.transform.SetParent(viewportImage.transform, false);
@@ -179,6 +178,8 @@ namespace StarfallAcademy.Lobby
                 if (stage == null) continue;
                 CreateStageCard(content, stage, i);
             }
+            LayoutRebuilder.ForceRebuildLayoutImmediate(content);
+            scroll.verticalNormalizedPosition = 1f;
         }
 
         void CreateStageCard(RectTransform content, StageData stage, int index)
@@ -345,7 +346,8 @@ namespace StarfallAcademy.Lobby
             description.text = stage.Description;
             recommended.text = stage.RecommendedPower.ToString("N0");
             enemies.text = stage.EnemyName + "  × " + stage.EnemyCount + "  ·  LV." + stage.EnemyLevel;
-            rewards.text = "● " + stage.RewardCredits.ToString("N0") + "   ♦ " + stage.RewardSkillMaterials;
+            rewards.text = "● " + stage.RewardCredits.ToString("N0") + " 크레딧   ◇ " +
+                stage.RewardSkillMaterials + " " + PlayerWallet.SkillMaterialDisplayName;
             lockState.text = unlocked ? (StageProgression.IsCleared(stage) ? "CLEAR" : "UNLOCKED") : "LOCKED";
             startLabel.text = unlocked ? "작전 개시" : "잠긴 스테이지";
             startButton.interactable = unlocked;

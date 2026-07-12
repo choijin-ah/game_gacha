@@ -63,6 +63,7 @@
     <Compile Include="Assets\StarfallAcademy\Editor\CharacterArtImporter.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\LobbySceneBuilder.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\FormationSceneBuilder.cs" />
+    <Compile Include="Assets\StarfallAcademy\Editor\ShopSceneBuilder.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\BattleSceneBuilder.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\CharacterDatabaseWindow.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\CharacterArchiveSceneBuilder.cs" />

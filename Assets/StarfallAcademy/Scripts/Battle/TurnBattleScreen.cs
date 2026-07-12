@@ -415,7 +415,8 @@ namespace StarfallAcademy.Lobby
                 bool hasNext = nextIndex >= 0;
                 resultTitle.text = "작 전 완 료";
                 resultBody.text = stage.DisplayName + " 클리어\n\n●  " + stage.RewardCredits.ToString("N0") +
-                    " 크레딧     ♦  " + stage.RewardSkillMaterials + " 별의 결정" +
+                    " 크레딧     ◇  " + stage.RewardSkillMaterials + " " +
+                    PlayerWallet.SkillMaterialDisplayName +
                     (firstClear ? hasNext
                         ? "\n\nFIRST CLEAR  ·  다음 작전이 해금되었습니다"
                         : "\n\nFIRST CLEAR  ·  마지막 작전을 완료했습니다" : string.Empty);

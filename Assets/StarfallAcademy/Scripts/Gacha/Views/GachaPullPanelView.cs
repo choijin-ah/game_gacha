@@ -42,10 +42,10 @@ namespace StarfallAcademy.Lobby
                 new Vector2(0, -205), new Vector2(-38, 2));
 
             GameObject single = ui.CreateButton("Single Pull", panel, new Vector2(0, 0), new Vector2(155, 78),
-                new Vector2(260, 112), "1회 모집\n◈  " + (config != null ? config.SinglePullCost.ToString("N0") : "-"),
+                new Vector2(260, 112), "1회 모집\n♦  " + (config != null ? config.SinglePullCost.ToString("N0") : "-"),
                 18, GachaGothicStyle.PanelStrong, () => onPull(1), TextAnchor.MiddleCenter, false);
             GameObject ten = ui.CreateButton("Ten Pull", panel, new Vector2(1, 0), new Vector2(-155, 78),
-                new Vector2(260, 112), "10회 모집\n◈  " + (config != null ? config.TenPullCost.ToString("N0") : "-"),
+                new Vector2(260, 112), "10회 모집\n♦  " + (config != null ? config.TenPullCost.ToString("N0") : "-"),
                 18, new Color(.18f, .18f, .21f, .98f), () => onPull(10), TextAnchor.MiddleCenter, false);
             GachaGothicStyle.AddBorder(ui, single.GetComponent<RectTransform>());
             GachaGothicStyle.AddBorder(ui, ten.GetComponent<RectTransform>(), new Color(.92f, .92f, .95f, .56f));
@@ -76,7 +76,8 @@ namespace StarfallAcademy.Lobby
                 probabilityLabel.text = "GachaConfig가 없습니다";
                 pityLabel.text = string.Empty;
             }
-            currencyLabel.text = "보유 청휘석  ◈  " + service.Currency.ToString("N0");
+            currencyLabel.text = "보유 " + PlayerWallet.PremiumCurrencyDisplayName + "  ♦  " +
+                service.Currency.ToString("N0");
             bool canPull = selected != null && config != null;
             singleButton.interactable = canPull;
             tenButton.interactable = canPull;

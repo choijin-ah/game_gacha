@@ -225,7 +225,8 @@ namespace StarfallAcademy.Lobby
             levelLabel.text = owned ? "LV. " + level + " / " + selected.MaxLevel : "—";
             powerLabel.text = owned ? CharacterProgressionService.GetCombatPower(selected).ToString("N0") : "—";
             walletLabel.text = "보유   ● " + PlayerWallet.Credits.ToString("N0") +
-                "     ♦ " + PlayerWallet.SkillMaterials.ToString("N0");
+                "     ◇ " + PlayerWallet.SkillMaterials.ToString("N0") + " " +
+                PlayerWallet.SkillMaterialDisplayName;
             levelGrowthLabel.text = "캐릭터 레벨   " + (owned ? "LV. " + level : "LOCKED");
             skillGrowthLabel.text = selected.SkillName + "\n" + (owned
                 ? "SKILL LV. " + skillLevel + " / " + selected.SkillMaxLevel : "LOCKED");
@@ -234,7 +235,7 @@ namespace StarfallAcademy.Lobby
             bool skillMax = skillLevel >= selected.SkillMaxLevel;
             levelButtonLabel.text = levelMax ? "MAX" : "레벨업   ● " +
                 CharacterProgressionService.GetLevelUpCost(selected).ToString("N0");
-            skillButtonLabel.text = skillMax ? "MAX" : "스킬 강화   ♦ " +
+            skillButtonLabel.text = skillMax ? "MAX" : "스킬 강화   ◇ " +
                 CharacterProgressionService.GetSkillUpCost(selected).ToString("N0");
             levelButton.interactable = owned && !levelMax;
             skillButton.interactable = owned && !skillMax;

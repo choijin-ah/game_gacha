@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace StarfallAcademy.Lobby
 {
-    [CreateAssetMenu(fileName = "StageDatabase", menuName = "Starfall Academy/Stage Database")]
+    [CreateAssetMenu(fileName = "StageDatabase", menuName = "Starfall/Stage Database")]
     public sealed class StageDatabase : ScriptableObject
     {
         [SerializeField] List<StageData> stages = new List<StageData>();

@@ -24,7 +24,7 @@ namespace StarfallAcademy.Lobby
             if (image == null) return;
             if (monochromeMaterial == null)
             {
-                Shader shader = Shader.Find("Starfall Academy/UI Monochrome");
+                Shader shader = Shader.Find("Starfall/UI Monochrome");
                 if (shader == null) return;
                 monochromeMaterial = new Material(shader)
                 {

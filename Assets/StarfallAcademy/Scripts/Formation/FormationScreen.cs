@@ -137,8 +137,7 @@ namespace StarfallAcademy.Lobby
             Image viewportImage = ui.CreateImage("Roster Viewport", panel, new Color(.005f, .005f, .008f, .52f),
                 new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(0, -27), new Vector2(730, 590), true);
             RectTransform viewport = viewportImage.rectTransform;
-            Mask mask = viewport.gameObject.AddComponent<Mask>();
-            mask.showMaskGraphic = false;
+            viewport.gameObject.AddComponent<RectMask2D>();
 
             var contentObject = new GameObject("Roster Grid", typeof(RectTransform), typeof(GridLayoutGroup), typeof(ContentSizeFitter));
             contentObject.transform.SetParent(viewport, false);

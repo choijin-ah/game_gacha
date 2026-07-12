@@ -16,7 +16,7 @@ namespace StarfallAcademy.Lobby.Editor
             EditorApplication.delayCall += EnsureSceneExists;
         }
 
-        [MenuItem("Starfall Academy/Rebuild Gacha Scene")]
+        [MenuItem("Starfall/Rebuild Gacha Scene")]
         public static void Create()
         {
             if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
@@ -27,7 +27,7 @@ namespace StarfallAcademy.Lobby.Editor
             SceneBuildSettingsUtility.Update();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[Starfall Academy] Gacha scene created: " + ScenePath);
+            Debug.Log("[Starfall] Gacha scene created: " + ScenePath);
         }
 
         static void EnsureSceneExists()
@@ -53,7 +53,7 @@ namespace StarfallAcademy.Lobby.Editor
             SceneBuildSettingsUtility.Update();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[Starfall Academy] Gacha scene created automatically: " + ScenePath);
+            Debug.Log("[Starfall] Gacha scene created automatically: " + ScenePath);
         }
 
         static void CreateSceneObjects(Scene scene)

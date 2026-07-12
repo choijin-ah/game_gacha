@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace StarfallAcademy.Lobby
 {
-    [CreateAssetMenu(fileName = "GachaConfig", menuName = "Starfall Academy/Gacha Configuration")]
+    [CreateAssetMenu(fileName = "GachaConfig", menuName = "Starfall/Gacha Configuration")]
     public sealed class GachaConfig : ScriptableObject
     {
         [Header("Banner")]

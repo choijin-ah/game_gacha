@@ -40,7 +40,7 @@ namespace StarfallAcademy.Lobby.Editor
         Vector2 listScroll;
         Vector2 inspectorScroll;
 
-        [MenuItem("Starfall Academy/Character Database")]
+        [MenuItem("Starfall/Character Database")]
         public static void Open()
         {
             var window = GetWindow<CharacterDatabaseWindow>("Character Database");
