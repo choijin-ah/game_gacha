@@ -18,14 +18,15 @@ namespace StarfallAcademy.Lobby
         const float RightWidth = 560f;
 
         public static void Build(RectTransform root, LobbyUiFactory ui, Action openCharacterArchive,
-            Action openFormation, Action openGacha, Action openShop, Action openStageSelect, Action openSettings,
-            Action<string, string> openPopup, Action<string> showToast)
+            Action openStoryArchive, Action openFormation, Action openGacha, Action openShop,
+            Action openStageSelect, Action openSettings, Action<string, string> openPopup,
+            Action<string> showToast)
         {
             BuildProfile(root, ui, openPopup);
             BuildCurrencies(root, ui, openGacha, openSettings, openPopup);
-            BuildStoryBanner(root, ui, openPopup);
+            BuildStoryBanner(root, ui, openStoryArchive);
             BuildQuickCards(root, ui, openCharacterArchive, openFormation, openShop, openPopup);
-            BuildBattleArea(root, ui, openGacha, openStageSelect, openPopup);
+            BuildBattleArea(root, ui, openStoryArchive, openGacha, openStageSelect, openPopup);
             BuildSocialButtons(root, ui, openPopup, showToast);
         }
 
@@ -132,11 +133,11 @@ namespace StarfallAcademy.Lobby
             if (badge) AddNotification(ui, button.transform, new Vector2(1, 1), new Vector2(-8, -8));
         }
 
-        static void BuildStoryBanner(RectTransform root, LobbyUiFactory ui, Action<string, string> openPopup)
+        static void BuildStoryBanner(RectTransform root, LobbyUiFactory ui, Action openStoryArchive)
         {
             GameObject banner = ui.CreateButton("Main Story Banner", root, new Vector2(1, 1),
                 new Vector2(RightCenter, -254), new Vector2(RightWidth, 188), string.Empty, 18, Panel,
-                () => openPopup("메인 스토리", "CHAPTER 7\n\n그림자 너머의 진실\n새로운 메인 스토리가 개방되었습니다."),
+                openStoryArchive,
                 TextAnchor.MiddleCenter, false);
             RectTransform panel = banner.GetComponent<RectTransform>();
             AddBorder(ui, panel);
@@ -174,8 +175,8 @@ namespace StarfallAcademy.Lobby
             }
         }
 
-        static void BuildBattleArea(RectTransform root, LobbyUiFactory ui, Action openGacha,
-            Action openStageSelect, Action<string, string> openPopup)
+        static void BuildBattleArea(RectTransform root, LobbyUiFactory ui, Action openStoryArchive,
+            Action openGacha, Action openStageSelect, Action<string, string> openPopup)
         {
             GameObject battle = ui.CreateButton("Battle", root, new Vector2(1, 0),
                 new Vector2(RightCenter, 320), new Vector2(RightWidth, 142), string.Empty, 20, Panel,
@@ -198,7 +199,9 @@ namespace StarfallAcademy.Lobby
             for (int i = 0; i < korean.Length; i++)
             {
                 int index = i;
-                Action action = i == 1
+                Action action = i == 0
+                    ? openStoryArchive
+                    : i == 1
                     ? openGacha
                     : () => openPopup(korean[index], korean[index] + " 메뉴입니다.");
                 GameObject card = CreateCard(ui, root, "Lower " + korean[i], new Vector2(1, 0),

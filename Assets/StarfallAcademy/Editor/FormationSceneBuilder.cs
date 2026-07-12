@@ -89,6 +89,7 @@ namespace StarfallAcademy.Lobby.Editor
                 GachaSceneBuilder.ScenePath,
                 ShopSceneBuilder.ScenePath,
                 CharacterArchiveSceneBuilder.ScenePath,
+                "Assets/StarfallAcademy/Scenes/StoryArchive.unity",
                 StageSelectSceneBuilder.ScenePath,
                 TurnBattleSceneBuilder.ScenePath
             };

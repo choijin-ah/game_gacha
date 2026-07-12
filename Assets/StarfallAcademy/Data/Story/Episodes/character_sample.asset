@@ -1,0 +1,146 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c72c2937231912045912315eaae71642, type: 3}
+  m_Name: character_sample
+  m_EditorClassIdentifier: Assembly-CSharp::StarfallAcademy.Lobby.StoryEpisode
+  episodeId: character_sample
+  title: "인연 · 닫힌 창문 너머"
+  category: 2
+  sortOrder: 0
+  thumbnail: {fileID: 0}
+  banner: {fileID: 0}
+  focusCharacter: {fileID: 11400000, guid: 312cb4d1ee8b2a841b88c793526675c4, type: 2}
+  summary: "한 인물의 숨겨진 마음을 들여다보는 짧은 이야기."
+  initiallyUnlocked: 1
+  unlockKey: 
+  prerequisiteEpisodeId: 
+  lines:
+  - lineId: line_001
+    speaker: {fileID: 11400000, guid: 312cb4d1ee8b2a841b88c793526675c4, type: 2}
+    speakerNameOverride: 
+    speakerPosition: 2
+    text: "사람들은 내가 언제나 괜찮다고 생각해."
+    left:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    center:
+      character: {fileID: 11400000, guid: 312cb4d1ee8b2a841b88c793526675c4, type: 2}
+      expressionSprite: {fileID: 0}
+      expressionKey: sad
+      visible: 1
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    right:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    background: {fileID: 0}
+    cg: {fileID: 0}
+    bgm: {fileID: 0}
+    sfx: {fileID: 0}
+    transition: 3
+    effects: 8
+    shakeStrength: 8
+    effectDuration: 0.35
+    textSpeed: 0.035
+    autoDuration: 2
+    choices: []
+  - lineId: line_002
+    speaker: {fileID: 0}
+    speakerNameOverride: "주인공"
+    speakerPosition: 0
+    text: "괜찮지 않아도 돼. 오늘은 내가 들을게."
+    left:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    center:
+      character: {fileID: 11400000, guid: 312cb4d1ee8b2a841b88c793526675c4, type: 2}
+      expressionSprite: {fileID: 0}
+      expressionKey: surprised
+      visible: 1
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    right:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    background: {fileID: 0}
+    cg: {fileID: 0}
+    bgm: {fileID: 0}
+    sfx: {fileID: 0}
+    transition: 2
+    effects: 0
+    shakeStrength: 8
+    effectDuration: 0.35
+    textSpeed: 0.035
+    autoDuration: 2
+    choices: []
+  - lineId: line_003
+    speaker: {fileID: 11400000, guid: 312cb4d1ee8b2a841b88c793526675c4, type: 2}
+    speakerNameOverride: 
+    speakerPosition: 2
+    text: "…그 말, 조금만 더 믿어 봐도 될까?"
+    left:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    center:
+      character: {fileID: 11400000, guid: 312cb4d1ee8b2a841b88c793526675c4, type: 2}
+      expressionSprite: {fileID: 0}
+      expressionKey: smile
+      visible: 1
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    right:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    background: {fileID: 0}
+    cg: {fileID: 0}
+    bgm: {fileID: 0}
+    sfx: {fileID: 0}
+    transition: 2
+    effects: 0
+    shakeStrength: 8
+    effectDuration: 0.35
+    textSpeed: 0.035
+    autoDuration: 2
+    choices: []

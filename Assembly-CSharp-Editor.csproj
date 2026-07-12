@@ -57,14 +57,20 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\StarfallAcademy\Editor\PlayModeStartScene.cs" />
+    <Compile Include="Assets\StarfallAcademy\Editor\Story\StoryImportWindow.cs" />
+    <Compile Include="Assets\StarfallAcademy\Editor\Story\StorySpreadsheetReader.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\StageDatabaseBootstrap.cs" />
+    <Compile Include="Assets\StarfallAcademy\Editor\StoryArchiveSceneBuilder.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\GachaSceneBuilder.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\LobbyArtImporter.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\CharacterArtImporter.cs" />
+    <Compile Include="Assets\StarfallAcademy\Editor\Story\StoryDatabaseBootstrap.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\LobbySceneBuilder.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\FormationSceneBuilder.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\ShopSceneBuilder.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\BattleSceneBuilder.cs" />
+    <Compile Include="Assets\StarfallAcademy\Editor\Story\VisualNovelEditorWindow.cs" />
+    <Compile Include="Assets\StarfallAcademy\Editor\BattleCoreDiagnostics.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\CharacterDatabaseWindow.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\CharacterArchiveSceneBuilder.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\GachaConfigWindow.cs" />

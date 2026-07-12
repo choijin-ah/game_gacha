@@ -70,8 +70,8 @@ namespace StarfallAcademy.Lobby
             settings.Initialize(overlayRoot, ui);
             speech.Initialize(overlayRoot, ui, toast);
 
-            GothicLobbyView.Build(safeRoot, ui, OpenCharacterArchive, OpenFormation, OpenGacha,
-                OpenShop, OpenStageSelect, settings.Open, OpenPopup, toast.Show);
+            GothicLobbyView.Build(safeRoot, ui, OpenCharacterArchive, OpenStoryArchive, OpenFormation,
+                OpenGacha, OpenShop, OpenStageSelect, settings.Open, OpenPopup, toast.Show);
             overlayRoot.SetAsLastSibling();
         }
 
@@ -94,6 +94,7 @@ namespace StarfallAcademy.Lobby
         void OpenGacha() => SceneManager.LoadScene(SceneNames.Gacha);
         void OpenShop() => SceneManager.LoadScene(SceneNames.Shop);
         void OpenCharacterArchive() => SceneManager.LoadScene(SceneNames.CharacterArchive);
+        void OpenStoryArchive() => SceneManager.LoadScene(SceneNames.StoryArchive);
         void OpenStageSelect() => SceneManager.LoadScene(SceneNames.StageSelect);
 
         static RectTransform CreateLayer(string name, Transform parent)

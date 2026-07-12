@@ -24,3 +24,14 @@ MonoBehaviour:
   rarity: 5
   level: 1
   combatPower: 1000
+  maxLevel: 100
+  levelUpBaseCreditCost: 1000
+  levelUpCreditCostGrowth: 250
+  combatPowerPerLevel: 120
+  skillName: "\uACE0\uC720 \uC2A4\uD0AC"
+  skillIcon: {fileID: 0}
+  defaultSkillIcon: 4
+  skillMaxLevel: 10
+  skillBaseMaterialCost: 20
+  skillMaterialCostGrowth: 10
+  combatPowerPerSkillLevel: 250

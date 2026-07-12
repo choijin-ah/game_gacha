@@ -7,6 +7,7 @@ namespace StarfallAcademy.Lobby
         public const string Gacha = "Gacha";
         public const string Shop = "Shop";
         public const string CharacterArchive = "CharacterArchive";
+        public const string StoryArchive = "StoryArchive";
         public const string StageSelect = "StageSelect";
         public const string TurnBattle = "TurnBattle";
     }

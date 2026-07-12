@@ -1,0 +1,146 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c72c2937231912045912315eaae71642, type: 3}
+  m_Name: main_prologue
+  m_EditorClassIdentifier: Assembly-CSharp::StarfallAcademy.Lobby.StoryEpisode
+  episodeId: main_prologue
+  title: "프롤로그 · 별이 내린 밤"
+  category: 0
+  sortOrder: 0
+  thumbnail: {fileID: 0}
+  banner: {fileID: 0}
+  focusCharacter: {fileID: 11400000, guid: 312cb4d1ee8b2a841b88c793526675c4, type: 2}
+  summary: "도시의 밤하늘이 갈라진 날, 스타폴의 이야기가 시작된다."
+  initiallyUnlocked: 1
+  unlockKey: 
+  prerequisiteEpisodeId: 
+  lines:
+  - lineId: line_001
+    speaker: {fileID: 0}
+    speakerNameOverride: "내레이션"
+    speakerPosition: 0
+    text: "별빛이 사라진 지 열두 번째 밤이었다."
+    left:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    center:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    right:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    background: {fileID: 0}
+    cg: {fileID: 0}
+    bgm: {fileID: 0}
+    sfx: {fileID: 0}
+    transition: 3
+    effects: 8
+    shakeStrength: 8
+    effectDuration: 0.35
+    textSpeed: 0.035
+    autoDuration: 2
+    choices: []
+  - lineId: line_002
+    speaker: {fileID: 11400000, guid: 312cb4d1ee8b2a841b88c793526675c4, type: 2}
+    speakerNameOverride: 
+    speakerPosition: 2
+    text: "이곳에서 기다리면… 분명 다시 만날 수 있어."
+    left:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    center:
+      character: {fileID: 11400000, guid: 312cb4d1ee8b2a841b88c793526675c4, type: 2}
+      expressionSprite: {fileID: 0}
+      expressionKey: default
+      visible: 1
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    right:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    background: {fileID: 0}
+    cg: {fileID: 0}
+    bgm: {fileID: 0}
+    sfx: {fileID: 0}
+    transition: 2
+    effects: 0
+    shakeStrength: 8
+    effectDuration: 0.35
+    textSpeed: 0.035
+    autoDuration: 2
+    choices: []
+  - lineId: line_003
+    speaker: {fileID: 0}
+    speakerNameOverride: "내레이션"
+    speakerPosition: 0
+    text: "멀리서 종소리가 울리고, 정지했던 운명이 움직이기 시작했다."
+    left:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    center:
+      character: {fileID: 11400000, guid: 312cb4d1ee8b2a841b88c793526675c4, type: 2}
+      expressionSprite: {fileID: 0}
+      expressionKey: smile
+      visible: 1
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    right:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    background: {fileID: 0}
+    cg: {fileID: 0}
+    bgm: {fileID: 0}
+    sfx: {fileID: 0}
+    transition: 2
+    effects: 0
+    shakeStrength: 8
+    effectDuration: 0.35
+    textSpeed: 0.035
+    autoDuration: 2
+    choices: []

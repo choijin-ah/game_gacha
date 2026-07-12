@@ -21,6 +21,9 @@ EditorBuildSettings:
     path: Assets/StarfallAcademy/Scenes/CharacterArchive.unity
     guid: 4d8c9f4b10ef63e4f8465bf23e5ee9da
   - enabled: 1
+    path: Assets/StarfallAcademy/Scenes/StoryArchive.unity
+    guid: 0c7388417e4e4ec68b42b1b7031cccf7
+  - enabled: 1
     path: Assets/StarfallAcademy/Scenes/StageSelect.unity
     guid: c672943fa81df354690f7a26db4a1e40
   - enabled: 1

@@ -1,0 +1,106 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c72c2937231912045912315eaae71642, type: 3}
+  m_Name: side_archive_room
+  m_EditorClassIdentifier: Assembly-CSharp::StarfallAcademy.Lobby.StoryEpisode
+  episodeId: side_archive_room
+  title: "외전 · 기록실의 유령"
+  category: 3
+  sortOrder: 0
+  thumbnail: {fileID: 0}
+  banner: {fileID: 0}
+  focusCharacter: {fileID: 0}
+  summary: "늦은 밤 기록실에서 발견한 정체불명의 기록."
+  initiallyUnlocked: 1
+  unlockKey: 
+  prerequisiteEpisodeId: 
+  lines:
+  - lineId: line_001
+    speaker: {fileID: 0}
+    speakerNameOverride: "내레이션"
+    speakerPosition: 0
+    text: "아무도 없는 기록실에서 책장이 저절로 넘어갔다."
+    left:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    center:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    right:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    background: {fileID: 0}
+    cg: {fileID: 0}
+    bgm: {fileID: 0}
+    sfx: {fileID: 0}
+    transition: 3
+    effects: 40
+    shakeStrength: 8
+    effectDuration: 0.35
+    textSpeed: 0.035
+    autoDuration: 2
+    choices: []
+  - lineId: line_002
+    speaker: {fileID: 0}
+    speakerNameOverride: "???"
+    speakerPosition: 2
+    text: "마지막 페이지를 찾는 사람은 누구지?"
+    left:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    center:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    right:
+      character: {fileID: 0}
+      expressionSprite: {fileID: 0}
+      expressionKey: 
+      visible: 0
+      flipX: 0
+      tint: {r: 1, g: 1, b: 1, a: 1}
+      offset: {x: 0, y: 0}
+    background: {fileID: 0}
+    cg: {fileID: 0}
+    bgm: {fileID: 0}
+    sfx: {fileID: 0}
+    transition: 2
+    effects: 1
+    shakeStrength: 4
+    effectDuration: 0.25
+    textSpeed: 0.05
+    autoDuration: 2
+    choices: []

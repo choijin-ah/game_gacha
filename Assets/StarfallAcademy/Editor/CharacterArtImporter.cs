@@ -7,25 +7,43 @@ namespace StarfallAcademy.Lobby.Editor
     public sealed class CharacterArtImporter : AssetPostprocessor
     {
         const string CharacterArtFolder = "Assets/StarfallAcademy/Arts/Characters/";
+        const string StoryArtFolder = "Assets/StarfallAcademy/Resources/Story/";
 
         [InitializeOnLoadMethod]
         static void ScheduleImportCheck()
         {
-            EditorApplication.delayCall += EnsureCharacterArtSettings;
+            EditorApplication.delayCall += EnsureManagedArtSettings;
         }
 
         [MenuItem("Starfall/Reimport Character Art")]
         static void ReimportCharacterArt()
         {
-            string[] guids = AssetDatabase.FindAssets("t:Texture2D", new[] { CharacterArtFolder });
+            ReimportFolder(CharacterArtFolder);
+        }
+
+        [MenuItem("Starfall/Story/Reimport Story Art")]
+        static void ReimportStoryArt()
+        {
+            ReimportFolder(StoryArtFolder);
+        }
+
+        static void ReimportFolder(string folder)
+        {
+            string[] guids = AssetDatabase.FindAssets("t:Texture2D", new[] { folder });
             foreach (string guid in guids)
                 AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
             AssetDatabase.Refresh();
         }
 
-        static void EnsureCharacterArtSettings()
+        static void EnsureManagedArtSettings()
         {
-            string[] guids = AssetDatabase.FindAssets("t:Texture2D", new[] { CharacterArtFolder });
+            EnsureFolderSettings(CharacterArtFolder);
+            EnsureFolderSettings(StoryArtFolder);
+        }
+
+        static void EnsureFolderSettings(string folder)
+        {
+            string[] guids = AssetDatabase.FindAssets("t:Texture2D", new[] { folder });
             foreach (string guid in guids)
             {
                 string path = AssetDatabase.GUIDToAssetPath(guid);
@@ -38,7 +56,9 @@ namespace StarfallAcademy.Lobby.Editor
 
         void OnPreprocessTexture()
         {
-            if (!assetPath.Replace('\\', '/').StartsWith(CharacterArtFolder)) return;
+            string normalizedPath = assetPath.Replace('\\', '/');
+            if (!normalizedPath.StartsWith(CharacterArtFolder)
+                && !normalizedPath.StartsWith(StoryArtFolder)) return;
             TextureImporter importer = (TextureImporter)assetImporter;
             importer.textureType = TextureImporterType.Sprite;
             importer.spriteImportMode = SpriteImportMode.Single;
