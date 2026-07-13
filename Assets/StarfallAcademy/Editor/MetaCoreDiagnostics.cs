@@ -6,7 +6,7 @@ namespace StarfallAcademy.Lobby
 {
     public static class MetaCoreDiagnostics
     {
-        [MenuItem("Starfall/Meta/Run Core Diagnostics")]
+        [MenuItem("Starfall/Diagnostics/Meta Core Diagnostics")]
         public static void RunCoreDiagnostics()
         {
             VerifyRewardsAndProfile();

@@ -37,7 +37,7 @@
 
 `Assets/StarfallAcademy/Resources/Story/` 아래에 넣은 PNG/JPG는 자동으로
 `Sprite (2D and UI)`로 임포트됩니다. 기존 이미지가 Sprite 선택창에 보이지 않으면
-`Starfall > Story > Reimport Story Art`를 실행합니다.
+`Starfall > Art > Reimport Story Art`를 실행합니다.
 
 ## 배경/연출/오디오
 

@@ -9,7 +9,7 @@ namespace StarfallAcademy.Lobby.Editor
 
         static ShopSceneBuilder() => EditorApplication.delayCall += Ensure;
 
-        [MenuItem("Starfall/Rebuild Shop Scene")]
+        [MenuItem("Starfall/Rebuild/Shop Scene")]
         public static void Create() => BattleSceneBuilderUtility.CreateScene<ShopSceneEntry>(
             ScenePath, "Shop Scene Entry");
 

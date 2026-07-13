@@ -17,7 +17,7 @@ namespace StarfallAcademy.Lobby.Editor
             EditorApplication.delayCall += EnsureSceneExists;
         }
 
-        [MenuItem("Starfall/Rebuild Formation Scene")]
+        [MenuItem("Starfall/Rebuild/Formation Scene")]
         public static void Create()
         {
             if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;

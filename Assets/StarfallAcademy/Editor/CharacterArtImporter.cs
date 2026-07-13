@@ -15,13 +15,13 @@ namespace StarfallAcademy.Lobby.Editor
             EditorApplication.delayCall += EnsureManagedArtSettings;
         }
 
-        [MenuItem("Starfall/Reimport Character Art")]
+        [MenuItem("Starfall/Art/Reimport Character Art")]
         static void ReimportCharacterArt()
         {
             ReimportFolder(CharacterArtFolder);
         }
 
-        [MenuItem("Starfall/Story/Reimport Story Art")]
+        [MenuItem("Starfall/Art/Reimport Story Art")]
         static void ReimportStoryArt()
         {
             ReimportFolder(StoryArtFolder);

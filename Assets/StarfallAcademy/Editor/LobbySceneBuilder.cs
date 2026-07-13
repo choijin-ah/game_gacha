@@ -10,7 +10,7 @@ namespace StarfallAcademy.Lobby.Editor
     {
         public const string ScenePath = "Assets/StarfallAcademy/Scenes/Lobby.unity";
 
-        [MenuItem("Starfall/Rebuild Lobby Scene")]
+        [MenuItem("Starfall/Rebuild/Lobby Scene")]
         public static void Create()
         {
             if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;

@@ -16,7 +16,7 @@ namespace StarfallAcademy.Lobby.Editor
             EditorApplication.delayCall += EnsureSceneExists;
         }
 
-        [MenuItem("Starfall/Story/Rebuild Story Archive Scene")]
+        [MenuItem("Starfall/Rebuild/Story Archive Scene")]
         public static void Create()
         {
             if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;

@@ -8,7 +8,7 @@ namespace StarfallAcademy.Lobby
     {
         const int DeterministicSeed = 240711;
 
-        [MenuItem("Starfall/Battle/Run Core Smoke Test")]
+        [MenuItem("Starfall/Diagnostics/Battle Core Smoke Test")]
         public static void RunCoreSmokeTest()
         {
             VerifyResourcesAndUltimateQueue();

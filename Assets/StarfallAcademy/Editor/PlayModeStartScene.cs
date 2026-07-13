@@ -12,7 +12,7 @@ namespace StarfallAcademy.Lobby.Editor
             EditorApplication.delayCall += Configure;
         }
 
-        [MenuItem("Starfall/Use Lobby As Play Start")]
+        [MenuItem("Starfall/Play Mode/Use Lobby As Start Scene")]
         public static void Configure()
         {
             SceneBuildSettingsUtility.Update();

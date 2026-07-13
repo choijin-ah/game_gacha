@@ -105,7 +105,7 @@ namespace StarfallAcademy.Lobby
             }
 
             if (characters.Count == 0)
-                ui.CreateText("Empty Archive", "등록된 캐릭터가 없습니다.\n\nStarfall > Character Database\n에서 캐릭터를 추가하세요.",
+                ui.CreateText("Empty Archive", "등록된 캐릭터가 없습니다.\n\nStarfall > Data > Character Database\n에서 캐릭터를 추가하세요.",
                     content, 16, FontStyle.Normal, UrbanFantasyStyle.Muted,
                     new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(0, -120),
                     new Vector2(420, 170), TextAnchor.MiddleCenter);

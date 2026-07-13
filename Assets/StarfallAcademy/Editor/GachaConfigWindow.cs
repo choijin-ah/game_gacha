@@ -34,7 +34,7 @@ namespace StarfallAcademy.Lobby.Editor
         CharacterData pendingPickup;
         Vector2 scroll;
 
-        [MenuItem("Starfall/Gacha Configuration")]
+        [MenuItem("Starfall/Data/Gacha Configuration")]
         public static void Open()
         {
             var window = GetWindow<GachaConfigWindow>("Gacha Configuration");
