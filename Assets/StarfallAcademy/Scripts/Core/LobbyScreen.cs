@@ -12,11 +12,26 @@ namespace StarfallAcademy.Lobby
         LobbyToastOverlay toast;
         LobbyModal modal;
         LobbySettingsPanel settings;
+        LobbyMissionPanel missions;
+        float nextLoginRefreshTime;
 
         void Awake()
         {
+            MissionService.RecordLogin();
             BuildCanvas();
             BuildScreen();
+        }
+
+        void Update()
+        {
+            if (Time.unscaledTime < nextLoginRefreshTime) return;
+            nextLoginRefreshTime = Time.unscaledTime + 30f;
+            MissionService.RecordLogin();
+        }
+
+        void OnApplicationFocus(bool hasFocus)
+        {
+            if (hasFocus) MissionService.RecordLogin();
         }
 
         void BuildCanvas()
@@ -64,14 +79,16 @@ namespace StarfallAcademy.Lobby
             LobbySpeechBubble speech = CreateController<LobbySpeechBubble>("Speech Controller", overlayRoot);
             modal = CreateController<LobbyModal>("Modal Controller", overlayRoot);
             settings = CreateController<LobbySettingsPanel>("Settings Controller", overlayRoot);
+            missions = CreateController<LobbyMissionPanel>("Mission Controller", overlayRoot);
             toast = CreateController<LobbyToastOverlay>("Toast Controller", overlayRoot);
             toast.Initialize(overlayRoot, ui);
             modal.Initialize(overlayRoot, ui);
             settings.Initialize(overlayRoot, ui);
+            missions.Initialize(overlayRoot, ui, toast);
             speech.Initialize(overlayRoot, ui, toast);
 
             GothicLobbyView.Build(safeRoot, ui, OpenCharacterArchive, OpenStoryArchive, OpenFormation,
-                OpenGacha, OpenShop, OpenStageSelect, settings.Open, OpenPopup, toast.Show);
+                OpenGacha, OpenShop, OpenStageSelect, missions.Open, settings.Open, OpenPopup, toast.Show);
             overlayRoot.SetAsLastSibling();
         }
 

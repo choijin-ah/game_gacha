@@ -1,0 +1,82 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ac7c66f8d07436240bead683476b22e5, type: 3}
+  m_Name: Character 3
+  m_EditorClassIdentifier: Assembly-CSharp::StarfallAcademy.Lobby.CharacterData
+  characterId: CHR_0004
+  displayName: 아리아
+  affiliation: 별빛 학생회
+  description: 빛의 신호로 아군의 공격 순서를 조율하는 지원가입니다.
+  portrait: {fileID: 21300000, guid: 2666670c2bd038249b95c50233acf659, type: 3}
+  gachaArt: {fileID: 21300000, guid: 2666670c2bd038249b95c50233acf659, type: 3}
+  accentColor: {r: 0.84, g: 0.73, b: 0.42, a: 1}
+  role: 1
+  attackType: 2
+  rarity: 4
+  level: 1
+  combatPower: 1120
+  maxLevel: 100
+  levelUpBaseCreditCost: 1000
+  levelUpCreditCostGrowth: 250
+  combatPowerPerLevel: 116
+  skillName: 선도자의 신호
+  skillIcon: {fileID: 0}
+  defaultSkillIcon: 1
+  skillMaxLevel: 10
+  skillBaseMaterialCost: 20
+  skillMaterialCostGrowth: 10
+  combatPowerPerSkillLevel: 240
+  battleElement: 4
+  maxHpOverride: 0
+  attackOverride: 0
+  defenseOverride: 0
+  speedOverride: 112
+  critChance: 0.05
+  critDamage: 1.5
+  maxEnergyOverride: 120
+  aggroWeight: 0.8
+  basicAction:
+    actionName: 광휘 사격
+    icon: {fileID: 0}
+    targetType: 0
+    damageMultiplier: 0.9
+    healingMultiplier: 0
+    fixedValue: 0
+    skillPointCost: -1
+    energyCost: 0
+    energyGain: 20
+    breakDamage: 30
+    element: 4
+  skillAction:
+    actionName: 선도자의 신호
+    icon: {fileID: 0}
+    targetType: 1
+    damageMultiplier: 0
+    healingMultiplier: 0
+    fixedValue: 0
+    skillPointCost: 1
+    energyCost: 0
+    energyGain: 30
+    breakDamage: 0
+    element: 4
+  ultimateAction:
+    actionName: 승리의 궤적
+    icon: {fileID: 0}
+    targetType: 3
+    damageMultiplier: 0
+    healingMultiplier: 0
+    fixedValue: 0
+    skillPointCost: 0
+    energyCost: 120
+    energyGain: 0
+    breakDamage: 0
+    element: 4

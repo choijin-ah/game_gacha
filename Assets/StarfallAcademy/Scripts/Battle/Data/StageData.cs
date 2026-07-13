@@ -2,6 +2,13 @@ using UnityEngine;
 
 namespace StarfallAcademy.Lobby
 {
+    public enum StageCategory
+    {
+        Main,
+        Growth,
+        Equipment
+    }
+
     [System.Serializable]
     public sealed class StageEnemyEntry
     {
@@ -128,15 +135,18 @@ namespace StarfallAcademy.Lobby
     [CreateAssetMenu(fileName = "Stage", menuName = "Starfall/Battle Stage")]
     public sealed class StageData : ScriptableObject
     {
+        public const int MaxEnemyCount = 5;
+
         [Header("Identity")]
         [SerializeField] string stageId = "stage_01";
         [SerializeField] string chapter = "CHAPTER 1";
         [SerializeField] string displayName = "첫 번째 작전";
         [SerializeField, TextArea(2, 4)] string description = "도시 외곽에 나타난 적을 정리하세요.";
+        [SerializeField] StageCategory category = StageCategory.Main;
 
         [Header("Enemies")]
         [SerializeField] string enemyName = "그림자 잔재";
-        [SerializeField, Range(1, 3)] int enemyCount = 3;
+        [SerializeField, Range(1, MaxEnemyCount)] int enemyCount = 3;
         [SerializeField, Min(1)] int enemyLevel = 1;
         [SerializeField, Min(100)] int enemyMaxHp = 1200;
         [SerializeField, Min(1)] int enemyAttack = 120;
@@ -166,24 +176,35 @@ namespace StarfallAcademy.Lobby
 
         [Header("Requirements & Reward")]
         [SerializeField, Min(0)] int recommendedPower = 4000;
+        [SerializeField, Min(0)] int staminaCost = 10;
+        [SerializeField, Min(0)] int accountExperienceReward = 100;
+        [SerializeField, Min(0)] int firstClearPremiumCurrency = 30;
         [SerializeField, Min(0)] int rewardCredits = 5000;
         [SerializeField, Min(0)] int rewardSkillMaterials = 10;
+        [SerializeField, Min(1)] int threeStarTurnLimit = 18;
+        [SerializeField] bool sweepEnabled = true;
 
         public string Id => string.IsNullOrWhiteSpace(stageId) ? name : stageId;
         public string Chapter => chapter;
         public string DisplayName => displayName;
         public string Description => description;
+        public StageCategory Category => category;
         public string EnemyName => enemyName;
         public int EnemyCount => ConfiguredEnemyCount > 0
-            ? ConfiguredEnemyCount : Mathf.Clamp(enemyCount, 1, 3);
+            ? ConfiguredEnemyCount : Mathf.Clamp(enemyCount, 1, MaxEnemyCount);
         public int EnemyLevel => enemyLevel;
         public int EnemyMaxHp => enemyMaxHp;
         public int EnemyAttack => enemyAttack;
         public int EnemySpeed => enemySpeed;
         public bool BossStage => bossStage;
         public int RecommendedPower => recommendedPower;
-        public int RewardCredits => rewardCredits;
-        public int RewardSkillMaterials => rewardSkillMaterials;
+        public int StaminaCost => Mathf.Max(0, staminaCost);
+        public int AccountExperienceReward => Mathf.Max(0, accountExperienceReward);
+        public int FirstClearPremiumCurrency => Mathf.Max(0, firstClearPremiumCurrency);
+        public int RewardCredits => Mathf.Max(0, rewardCredits);
+        public int RewardSkillMaterials => Mathf.Max(0, rewardSkillMaterials);
+        public int ThreeStarTurnLimit => Mathf.Max(1, threeStarTurnLimit);
+        public bool SweepEnabled => sweepEnabled;
         public EnemyArchetype EnemyArchetype => ResolveEnemyArchetype();
         public BattleElement[] EnemyWeaknesses => StageEnemyEntry.ResolveWeaknesses(
             enemyWeaknesses, EnemyArchetype, Id);
@@ -208,7 +229,7 @@ namespace StarfallAcademy.Lobby
 
         void OnValidate()
         {
-            enemyCount = Mathf.Clamp(enemyCount, 1, 3);
+            enemyCount = Mathf.Clamp(enemyCount, 1, MaxEnemyCount);
             enemyLevel = Mathf.Max(1, enemyLevel);
             enemyMaxHp = Mathf.Max(100, enemyMaxHp);
             enemyAttack = Mathf.Max(1, enemyAttack);
@@ -224,6 +245,14 @@ namespace StarfallAcademy.Lobby
             bossPhaseTwoAttackMultiplier = Mathf.Max(1f, bossPhaseTwoAttackMultiplier);
             bossPhaseTwoSpeedBonus = Mathf.Max(0, bossPhaseTwoSpeedBonus);
             bossPhaseTwoSummonCount = Mathf.Clamp(bossPhaseTwoSummonCount, 0, 2);
+            category = (StageCategory)Mathf.Clamp((int)category,
+                (int)StageCategory.Main, (int)StageCategory.Equipment);
+            staminaCost = Mathf.Max(0, staminaCost);
+            accountExperienceReward = Mathf.Max(0, accountExperienceReward);
+            firstClearPremiumCurrency = Mathf.Max(0, firstClearPremiumCurrency);
+            rewardCredits = Mathf.Max(0, rewardCredits);
+            rewardSkillMaterials = Mathf.Max(0, rewardSkillMaterials);
+            threeStarTurnLimit = Mathf.Max(1, threeStarTurnLimit);
             if (enemyLineup == null) return;
             foreach (StageEnemyEntry entry in enemyLineup)
                 if (entry != null) entry.Sanitize();
@@ -235,7 +264,7 @@ namespace StarfallAcademy.Lobby
             {
                 if (enemyLineup == null || enemyLineup.Length == 0) return 0;
                 int count = 0;
-                for (int i = 0; i < enemyLineup.Length && count < 3; i++)
+                for (int i = 0; i < enemyLineup.Length && count < MaxEnemyCount; i++)
                     if (enemyLineup[i] != null) count++;
                 return count;
             }
@@ -253,7 +282,7 @@ namespace StarfallAcademy.Lobby
                 return configured;
             }
 
-            int count = Mathf.Clamp(enemyCount, 1, 3);
+            int count = Mathf.Clamp(enemyCount, 1, MaxEnemyCount);
             var fallback = new StageEnemyEntry[count];
             for (int i = 0; i < count; i++)
             {

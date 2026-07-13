@@ -15,6 +15,7 @@ namespace StarfallAcademy.Lobby
             VerifyTurnOrderAndPreview();
             VerifyShieldBreakAndStatuses();
             VerifyEnemyWarningAndBossPhase();
+            VerifyAutoDecisionCore();
             UnityEngine.Debug.Log("[Starfall Battle] Core smoke test passed.");
         }
 
@@ -169,6 +170,35 @@ namespace StarfallAcademy.Lobby
 
             boss.TakeDamage(boss.MaxHp * .51f);
             Require(boss.Phase == 2, "보스 HP 50% 이하에서 2페이즈로 전환되지 않았습니다.");
+        }
+
+        static void VerifyAutoDecisionCore()
+        {
+            CombatUnit actor = Unit("auto-actor", BattleTeam.Player, 0, 105f);
+            CombatUnit ordinary = Unit("ordinary", BattleTeam.Enemy, 0, 90f, breakMax: 60f);
+            CombatUnit weak = Unit("weak", BattleTeam.Enemy, 1, 90f, breakMax: 60f);
+            weak.SetWeaknesses(new[] { BattleElement.Fire });
+            var breakSkill = new BattleActionConfig("격파 검증", null, BattleActionKind.Skill,
+                BattleTargetType.SingleEnemy, 1f, 0f, 0, 1, 0, 0, 60, BattleElement.Fire);
+            CombatUnit selectedEnemy = AutoDecisionService.SelectOffensiveTarget(
+                new[] { ordinary, weak }, actor, breakSkill, AutoBattlePreset.BreakFirst);
+            Require(ReferenceEquals(selectedEnemy, weak),
+                "격파 우선 자동 전투가 약점 격파 가능한 적을 선택하지 않았습니다.");
+
+            CombatUnit healthy = Unit("healthy", BattleTeam.Player, 1, 100f);
+            CombatUnit injured = Unit("injured", BattleTeam.Player, 2, 100f);
+            injured.TakeDamage(injured.MaxHp * .7f);
+            var healSkill = new BattleActionConfig("회복 검증", null, BattleActionKind.Skill,
+                BattleTargetType.SingleAlly, 0f, .2f, 0, 1, 0, 0, 0, BattleElement.Ice);
+            CombatUnit selectedAlly = AutoDecisionService.SelectAllyTarget(
+                new[] { healthy, injured }, actor, healSkill);
+            Require(ReferenceEquals(selectedAlly, injured),
+                "생존 자동 전투가 체력 비율이 가장 낮은 아군을 선택하지 않았습니다.");
+
+            AutoBattlePreset cycled = AutoBattlePreset.Balanced;
+            for (int i = 0; i < 5; i++) cycled = AutoBattleSettings.NextPreset(cycled);
+            Require(cycled == AutoBattlePreset.Balanced,
+                "자동 전투 프리셋 5종 순환이 시작 프리셋으로 돌아오지 않습니다.");
         }
 
         static CombatUnit Unit(string id, BattleTeam team, int slot, float speed, float breakMax = 0f)

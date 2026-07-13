@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4598b5b3c1c0d4d4f8bc2e0cf7a7e728, type: 3}
+  m_Name: Stage_06
+  m_EditorClassIdentifier: Assembly-CSharp::StarfallAcademy.Lobby.StageData
+  stageId: STG_MAIN_03_01
+  chapter: CHAPTER 3
+  displayName: 균열의 교차로
+  description: 다섯 방향에서 동시에 침입하는 균열 드론을 정리하세요.
+  category: 0
+  enemyName: 균열 드론
+  enemyCount: 5
+  enemyLevel: 28
+  enemyMaxHp: 1650
+  enemyAttack: 270
+  enemySpeed: 72
+  bossStage: 0
+  enemyArchetype: 1
+  enemyWeaknesses: 0000000002000000
+  enemyDefense: 55
+  enemyMaxBreak: 72
+  enemyDelayResistance: 0.05
+  enemyEffectResistance: 0.05
+  initialSkillPoints: 3
+  enemyLineup: []
+  showsDangerWarning: 0
+  bossPhaseTwoEnabled: 0
+  bossPhaseTwoThreshold: 0.5
+  bossPhaseTwoAttackMultiplier: 1.15
+  bossPhaseTwoSpeedBonus: 10
+  bossPhaseTwoSummonCount: 0
+  recommendedPower: 14500
+  staminaCost: 12
+  accountExperienceReward: 120
+  firstClearPremiumCurrency: 30
+  rewardCredits: 22000
+  rewardSkillMaterials: 35
+  threeStarTurnLimit: 24
+  sweepEnabled: 1

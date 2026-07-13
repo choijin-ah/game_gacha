@@ -22,12 +22,16 @@ namespace StarfallAcademy.Lobby
         Text enemies;
         Text rewards;
         Text lockState;
+        Text staminaLabel;
         Text startLabel;
         Button startButton;
+        Text sweepLabel;
+        Button sweepButton;
         RectTransform formationRoot;
         StageData selected;
         int selectedIndex = -1;
         bool changingScene;
+        float nextStaminaRefreshTime;
 
         void Awake()
         {
@@ -38,6 +42,11 @@ namespace StarfallAcademy.Lobby
         void Update()
         {
             if (!changingScene && Input.GetKeyDown(KeyCode.Escape)) ReturnToLobby();
+            if (!changingScene && Time.unscaledTime >= nextStaminaRefreshTime)
+            {
+                nextStaminaRefreshTime = Time.unscaledTime + 1f;
+                RefreshStamina();
+            }
         }
 
         void BuildCanvas()
@@ -134,6 +143,10 @@ namespace StarfallAcademy.Lobby
                 new Vector2(-140, -54), new Vector2(220, 54), "편성 변경", 17,
                 UrbanFantasyStyle.PanelStrong, ChangeFormation);
             UrbanFantasyStyle.AddBorder(ui, formationButton.GetComponent<RectTransform>());
+            staminaLabel = ui.CreateText("Stamina", string.Empty, workspace, 14, FontStyle.Normal,
+                UrbanFantasyStyle.Gold, new Vector2(1, 1), new Vector2(1, 1),
+                new Vector2(-405, -54), new Vector2(260, 42), TextAnchor.MiddleRight);
+            RefreshStamina();
         }
 
         void BuildStageList(RectTransform workspace)
@@ -184,7 +197,7 @@ namespace StarfallAcademy.Lobby
 
         void CreateStageCard(RectTransform content, StageData stage, int index)
         {
-            bool unlocked = StageProgression.IsUnlocked(index);
+            bool unlocked = IsStageUnlocked(stage, index);
             GameObject card = ui.CreateButton("Stage " + stage.Id, content, new Vector2(.5f, .5f),
                 Vector2.zero, new Vector2(476, 112), string.Empty, 16, UrbanFantasyStyle.PanelSoft,
                 () => SelectStage(stage, index));
@@ -203,7 +216,9 @@ namespace StarfallAcademy.Lobby
                 19, FontStyle.Normal, unlocked ? UrbanFantasyStyle.Silver : UrbanFantasyStyle.Muted,
                 new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(251, 18),
                 new Vector2(300, 30), TextAnchor.MiddleLeft);
-            string sub = unlocked ? stage.Chapter + "  ·  권장 " + stage.RecommendedPower.ToString("N0") : "◆  LOCKED";
+            int stars = StageProgression.GetStars(stage);
+            string sub = unlocked ? stage.Chapter + "  ·  " + CategoryLabel(stage.Category) + "  ·  권장 "
+                + stage.RecommendedPower.ToString("N0") + "  ·  " + StarLabel(stars) : "◆  LOCKED";
             ui.CreateText("Stage Info", sub, card.transform, 12, FontStyle.Normal,
                 unlocked ? UrbanFantasyStyle.Gold : UrbanFantasyStyle.Muted,
                 new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(251, -19),
@@ -251,6 +266,12 @@ namespace StarfallAcademy.Lobby
             UrbanFantasyStyle.AddBorder(ui, start.GetComponent<RectTransform>(), UrbanFantasyStyle.StrongLine);
             startButton = start.GetComponent<Button>();
             startLabel = start.GetComponentInChildren<Text>();
+            GameObject sweep = ui.CreateButton("Sweep Stage", panel, new Vector2(.5f, 0),
+                new Vector2(20, 58), new Vector2(220, 60), string.Empty, 16,
+                UrbanFantasyStyle.PanelSoft, SweepStage);
+            UrbanFantasyStyle.AddBorder(ui, sweep.GetComponent<RectTransform>());
+            sweepButton = sweep.GetComponent<Button>();
+            sweepLabel = sweep.GetComponentInChildren<Text>();
             ui.CreateText("Team Power", "TOTAL POWER  " + (formation != null ? formation.TotalPower.ToString("N0") : "0"),
                 panel, 15, FontStyle.Normal, UrbanFantasyStyle.Gold,
                 new Vector2(0, 0), new Vector2(0, 0), new Vector2(185, 58),
@@ -310,18 +331,19 @@ namespace StarfallAcademy.Lobby
                 SelectStage(null, -1);
                 return;
             }
-            int index = Mathf.Clamp(StageProgression.HighestUnlocked, 0, stageDatabase.Stages.Count - 1);
-            while (index > 0 && stageDatabase.Stages[index] == null) index--;
-            if (stageDatabase.Stages[index] == null)
+            int index = -1;
+            for (int i = 0; i < stageDatabase.Stages.Count; i++)
             {
-                for (int i = 0; i < stageDatabase.Stages.Count; i++)
-                {
-                    if (stageDatabase.Stages[i] == null) continue;
-                    index = i;
-                    break;
-                }
+                StageData candidate = stageDatabase.Stages[i];
+                if (candidate == null || candidate.Category != StageCategory.Main
+                    || !IsStageUnlocked(candidate, i)) continue;
+                index = i;
+                if (!StageProgression.IsCleared(candidate)) break;
             }
-            SelectStage(stageDatabase.Stages[index], index);
+            if (index < 0)
+                for (int i = 0; i < stageDatabase.Stages.Count; i++)
+                    if (IsStageUnlocked(stageDatabase.Stages[i], i)) { index = i; break; }
+            SelectStage(index >= 0 ? stageDatabase.Stages[index] : null, index);
         }
 
         void SelectStage(StageData stage, int index)
@@ -338,33 +360,110 @@ namespace StarfallAcademy.Lobby
                 recommended.text = enemies.text = rewards.text = lockState.text = string.Empty;
                 startLabel.text = "출격 불가";
                 startButton.interactable = false;
+                sweepLabel.text = "소탕 불가";
+                sweepButton.interactable = false;
                 return;
             }
-            bool unlocked = StageProgression.IsUnlocked(index);
+            bool unlocked = IsStageUnlocked(stage, index);
             stageNumber.text = stage.Chapter + "   /   STAGE " + (index + 1).ToString("00");
             stageName.text = stage.DisplayName;
             description.text = stage.Description;
             recommended.text = stage.RecommendedPower.ToString("N0");
             enemies.text = stage.EnemyName + "  × " + stage.EnemyCount + "  ·  LV." + stage.EnemyLevel;
             rewards.text = "● " + stage.RewardCredits.ToString("N0") + " 크레딧   ◇ " +
-                stage.RewardSkillMaterials + " " + PlayerWallet.SkillMaterialDisplayName;
-            lockState.text = unlocked ? (StageProgression.IsCleared(stage) ? "CLEAR" : "UNLOCKED") : "LOCKED";
-            startLabel.text = unlocked ? "작전 개시" : "잠긴 스테이지";
+                stage.RewardSkillMaterials + " " + PlayerWallet.SkillMaterialDisplayName
+                + "   EXP " + stage.AccountExperienceReward;
+            int stars = StageProgression.GetStars(stage);
+            lockState.text = unlocked ? (StageProgression.IsCleared(stage)
+                ? "CLEAR  " + StarLabel(stars) : "UNLOCKED") : "LOCKED";
+            int requiredLevel = StageProgression.GetRequiredAccountLevel(stage);
+            if (!unlocked && requiredLevel > PlayerProfileService.CurrentLevel)
+                lockState.text = "ACCOUNT LV." + requiredLevel + " REQUIRED";
+            startLabel.text = unlocked ? "작전 개시   ◆ " + stage.StaminaCost : "잠긴 스테이지";
             startButton.interactable = unlocked;
+            bool sweepUnlocked = StageProgression.IsSweepUnlocked(stage)
+                && PlayerProfileService.Default.IsUnlocked(AccountFeature.Sweep);
+            sweepLabel.text = sweepUnlocked ? "1회 소탕   ◆ " + stage.StaminaCost
+                : StageProgression.GetStars(stage) < 3 ? "★★★ 소탕 해금" : "계정 LV.8 해금";
+            sweepButton.interactable = unlocked && stage.SweepEnabled;
+            if (!stage.SweepEnabled) sweepLabel.text = "소탕 미지원";
+            RefreshStamina();
         }
 
         void StartBattle()
         {
-            if (selected == null || !StageProgression.IsUnlocked(selectedIndex)) return;
+            if (changingScene || selected == null || !IsStageUnlocked(selected, selectedIndex)) return;
             if (formation == null || formation.Count == 0)
             {
                 toast.Show("출격할 캐릭터를 편성하세요");
                 return;
             }
-            BattleSession.SelectedStage = selected;
-            BattleSession.SelectedStageIndex = selectedIndex;
+            if (!StaminaService.Default.TrySpend(selected.StaminaCost))
+            {
+                toast.Show("행동력이 부족합니다");
+                RefreshStamina();
+                return;
+            }
+            MissionService.RecordStaminaSpent(selected.StaminaCost);
+            BattleSession.BeginRun(selected, selectedIndex, true);
             changingScene = true;
             SceneManager.LoadScene(SceneNames.TurnBattle);
+        }
+
+        void SweepStage()
+        {
+            if (changingScene || selected == null || !IsStageUnlocked(selected, selectedIndex)) return;
+            if (!PlayerProfileService.Default.IsUnlocked(AccountFeature.Sweep))
+            {
+                toast.Show("소탕은 계정 LV.8에 해금됩니다");
+                return;
+            }
+            if (!StageProgression.IsSweepUnlocked(selected))
+            {
+                toast.Show("별 3개로 클리어하면 소탕할 수 있습니다");
+                return;
+            }
+            if (!StaminaService.Default.TrySpend(selected.StaminaCost))
+            {
+                toast.Show("행동력이 부족합니다");
+                RefreshStamina();
+                return;
+            }
+
+            RewardGrantResult result = RewardService.Grant("sweep:" + selected.Id + ":"
+                + System.Guid.NewGuid().ToString("N"), new RewardBundle(selected.RewardCredits,
+                selected.RewardSkillMaterials, selected.AccountExperienceReward));
+            if (result.Succeeded) MissionService.RecordStaminaSpent(selected.StaminaCost);
+            else StaminaService.Default.Charge(selected.StaminaCost, true);
+            toast.Show(result.Succeeded
+                ? "소탕 완료  ·  " + selected.RewardCredits.ToString("N0") + " 크레딧 획득"
+                : "소탕 보상을 지급하지 못했습니다");
+            RefreshStamina();
+            SelectStage(selected, selectedIndex);
+        }
+
+        void RefreshStamina()
+        {
+            if (staminaLabel == null) return;
+            StaminaSnapshot snapshot = StaminaService.Default.GetSnapshot();
+            staminaLabel.text = "ACCOUNT LV." + PlayerProfileService.CurrentLevel
+                + "   ◆ " + snapshot.Current + " / " + snapshot.Maximum;
+        }
+
+        bool IsStageUnlocked(StageData stage, int index) => stageDatabase != null
+            && StageProgression.IsUnlocked(stage, index, stageDatabase.Stages);
+
+        static string StarLabel(int stars) => new string('★', Mathf.Clamp(stars, 0, 3))
+            + new string('☆', 3 - Mathf.Clamp(stars, 0, 3));
+
+        static string CategoryLabel(StageCategory category)
+        {
+            switch (category)
+            {
+                case StageCategory.Growth: return "성장 던전";
+                case StageCategory.Equipment: return "장비 던전";
+                default: return "메인 작전";
+            }
         }
 
         void ChangeFormation()

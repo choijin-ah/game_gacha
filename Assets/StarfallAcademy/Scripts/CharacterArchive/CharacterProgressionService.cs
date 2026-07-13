@@ -56,7 +56,9 @@ namespace StarfallAcademy.Lobby
             if (character == null) return 0;
             int levelPower = Mathf.Max(0, GetLevel(character) - character.Level) * character.CombatPowerPerLevel;
             int skillPower = Mathf.Max(0, GetSkillLevel(character) - 1) * character.CombatPowerPerSkillLevel;
-            return character.CombatPower + levelPower + skillPower;
+            long total = (long)character.CombatPower + levelPower + skillPower +
+                EquipmentService.GetCombatPowerBonus(character);
+            return total >= int.MaxValue ? int.MaxValue : (int)total;
         }
 
         public static bool TryLevelUp(CharacterData character, out string message)
@@ -80,6 +82,7 @@ namespace StarfallAcademy.Lobby
             }
             PlayerPrefs.SetInt(LevelPrefix + character.Id, level + 1);
             PlayerPrefs.Save();
+            MissionService.RecordEnhancement();
             message = character.DisplayName + "  LV. " + (level + 1);
             return true;
         }
@@ -105,6 +108,7 @@ namespace StarfallAcademy.Lobby
             }
             PlayerPrefs.SetInt(SkillLevelPrefix + character.Id, level + 1);
             PlayerPrefs.Save();
+            MissionService.RecordEnhancement();
             message = character.SkillName + "  LV. " + (level + 1);
             return true;
         }

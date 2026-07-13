@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4598b5b3c1c0d4d4f8bc2e0cf7a7e728, type: 3}
+  m_Name: Stage_09
+  m_EditorClassIdentifier: Assembly-CSharp::StarfallAcademy.Lobby.StageData
+  stageId: STG_EQUIP_01
+  chapter: EQUIPMENT DUNGEON
+  displayName: 폐기 장비 보관소
+  description: 방어 장치를 격파해 장비 강화에 쓸 크레딧과 스킬 코어를 회수합니다.
+  category: 2
+  enemyName: 보관소 방어 장치
+  enemyCount: 4
+  enemyLevel: 34
+  enemyMaxHp: 2800
+  enemyAttack: 345
+  enemySpeed: 70
+  bossStage: 0
+  enemyArchetype: 2
+  enemyWeaknesses: 0200000003000000
+  enemyDefense: 125
+  enemyMaxBreak: 120
+  enemyDelayResistance: 0.15
+  enemyEffectResistance: 0.15
+  initialSkillPoints: 3
+  enemyLineup: []
+  showsDangerWarning: 0
+  bossPhaseTwoEnabled: 0
+  bossPhaseTwoThreshold: 0.5
+  bossPhaseTwoAttackMultiplier: 1.15
+  bossPhaseTwoSpeedBonus: 10
+  bossPhaseTwoSummonCount: 0
+  recommendedPower: 18500
+  staminaCost: 18
+  accountExperienceReward: 180
+  firstClearPremiumCurrency: 20
+  rewardCredits: 42000
+  rewardSkillMaterials: 85
+  threeStarTurnLimit: 24
+  sweepEnabled: 1

@@ -28,8 +28,20 @@ namespace StarfallAcademy.Lobby
         readonly Text skillGrowthLabel;
         readonly Text levelButtonLabel;
         readonly Text skillButtonLabel;
+        readonly Text equipmentPowerLabel;
+        readonly Text recommendedEquipmentLabel;
         readonly Button levelButton;
         readonly Button skillButton;
+        readonly Button recommendedEquipmentButton;
+        readonly Text[] equipmentSlotLabels = new Text[4];
+        readonly Button[] equipmentSlotButtons = new Button[4];
+        readonly EquipmentSlot[] equipmentSlots =
+        {
+            EquipmentSlot.Weapon,
+            EquipmentSlot.Armor,
+            EquipmentSlot.Accessory,
+            EquipmentSlot.AuxiliaryDevice
+        };
         CharacterData selected;
 
         public CharacterArchiveDetailView(RectTransform workspace, LobbyUiFactory ui, Action<string> showToast)
@@ -58,6 +70,39 @@ namespace StarfallAcademy.Lobby
             lockLabel = ui.CreateText("Locked Character", "◆\n\n미 획 득\nRECRUIT TO UNLOCK", artPanel, 18,
                 FontStyle.Normal, new Color(.86f, .86f, .9f, .72f), Vector2.zero, Vector2.one,
                 Vector2.zero, new Vector2(-50, -50), TextAnchor.MiddleCenter);
+
+            RectTransform equipment = ui.CreateImage("Equipment Panel", artPanel,
+                new Color(.008f, .008f, .012f, .92f), new Vector2(.5f, 0), new Vector2(.5f, 0),
+                new Vector2(0, 98), new Vector2(548, 176)).rectTransform;
+            UrbanFantasyStyle.AddBorder(ui, equipment);
+            ui.CreateText("Equipment Title", "E Q U I P M E N T", equipment, 11, FontStyle.Normal,
+                UrbanFantasyStyle.Muted, new Vector2(0, 1), new Vector2(.5f, 1),
+                new Vector2(16, -16), new Vector2(-8, 22), TextAnchor.MiddleLeft);
+            equipmentPowerLabel = ui.CreateText("Equipment Power", string.Empty, equipment, 11,
+                FontStyle.Normal, UrbanFantasyStyle.Gold, new Vector2(.5f, 1), new Vector2(1, 1),
+                new Vector2(-16, -16), new Vector2(-8, 22), TextAnchor.MiddleRight);
+
+            for (int i = 0; i < equipmentSlots.Length; i++)
+            {
+                int slotIndex = i;
+                EquipmentSlot slot = equipmentSlots[i];
+                float x = -198 + i * 132;
+                GameObject slotObject = ui.CreateButton("Equipment " + slot, equipment,
+                    new Vector2(.5f, 1), new Vector2(x, -67), new Vector2(122, 64),
+                    string.Empty, 11, new Color(.13f, .13f, .16f, .98f),
+                    () => UpgradeEquipment(equipmentSlots[slotIndex]));
+                UrbanFantasyStyle.AddBorder(ui, slotObject.GetComponent<RectTransform>());
+                equipmentSlotButtons[i] = slotObject.GetComponent<Button>();
+                equipmentSlotLabels[i] = slotObject.GetComponentInChildren<Text>();
+                equipmentSlotLabels[i].lineSpacing = .9f;
+            }
+
+            GameObject recommendEquipment = ui.CreateButton("Recommended Equipment", equipment,
+                new Vector2(.5f, 0), new Vector2(0, 22), new Vector2(230, 36), string.Empty, 12,
+                new Color(.18f, .16f, .10f, .98f), EquipRecommended);
+            UrbanFantasyStyle.AddBorder(ui, recommendEquipment.GetComponent<RectTransform>());
+            recommendedEquipmentButton = recommendEquipment.GetComponent<Button>();
+            recommendedEquipmentLabel = recommendEquipment.GetComponentInChildren<Text>();
 
             RectTransform info = ui.CreateImage("Character Information", panel,
                 new Color(.01f, .01f, .015f, .54f), new Vector2(1, .5f), new Vector2(1, .5f),
@@ -209,6 +254,22 @@ namespace StarfallAcademy.Lobby
             RefreshGrowth();
         }
 
+        void EquipRecommended()
+        {
+            if (selected == null) return;
+            EquipmentService.TryEquipRecommended(selected, out string message);
+            showToast?.Invoke(message);
+            RefreshGrowth();
+        }
+
+        void UpgradeEquipment(EquipmentSlot slot)
+        {
+            if (selected == null) return;
+            EquipmentService.TryUpgradeSlot(selected, slot, out string message);
+            showToast?.Invoke(message);
+            RefreshGrowth();
+        }
+
         void RefreshGrowth()
         {
             if (selected == null)
@@ -216,6 +277,7 @@ namespace StarfallAcademy.Lobby
                 levelGrowthLabel.text = skillGrowthLabel.text = walletLabel.text = string.Empty;
                 levelButtonLabel.text = skillButtonLabel.text = "—";
                 levelButton.interactable = skillButton.interactable = false;
+                RefreshEquipment(false);
                 return;
             }
 
@@ -239,6 +301,71 @@ namespace StarfallAcademy.Lobby
                 CharacterProgressionService.GetSkillUpCost(selected).ToString("N0");
             levelButton.interactable = owned && !levelMax;
             skillButton.interactable = owned && !skillMax;
+            RefreshEquipment(owned);
+        }
+
+        void RefreshEquipment(bool owned)
+        {
+            if (selected == null)
+            {
+                equipmentPowerLabel.text = string.Empty;
+                recommendedEquipmentLabel.text = "추천 일괄 장착";
+                recommendedEquipmentButton.interactable = false;
+                for (int i = 0; i < equipmentSlots.Length; i++)
+                {
+                    equipmentSlotLabels[i].text = EquipmentService.GetSlotDisplayName(equipmentSlots[i]) +
+                        "\n—";
+                    equipmentSlotButtons[i].interactable = false;
+                }
+                return;
+            }
+
+            if (!EquipmentService.IsUnlocked)
+            {
+                int requiredLevel = PlayerProfileService.GetRequiredLevel(AccountFeature.Equipment);
+                equipmentPowerLabel.text = "장비  ·  계정 LV." + requiredLevel + " 해금";
+                recommendedEquipmentLabel.text = "계정 LV." + requiredLevel + " 해금";
+                recommendedEquipmentButton.interactable = false;
+                for (int i = 0; i < equipmentSlots.Length; i++)
+                {
+                    equipmentSlotLabels[i].text = EquipmentService.GetSlotDisplayName(equipmentSlots[i])
+                        + "\nLOCKED";
+                    equipmentSlotButtons[i].interactable = false;
+                }
+                return;
+            }
+
+            bool hasEmptySlot = false;
+            equipmentPowerLabel.text = owned ? "장비 전투력  +" +
+                EquipmentService.GetCombatPowerBonus(selected).ToString("N0") : "장비 전투력  —";
+            for (int i = 0; i < equipmentSlots.Length; i++)
+            {
+                EquipmentSlot slot = equipmentSlots[i];
+                int equipmentLevel = EquipmentService.GetLevel(selected, slot);
+                string slotName = EquipmentService.GetSlotDisplayName(slot);
+                if (!owned)
+                {
+                    equipmentSlotLabels[i].text = slotName + "\nLOCKED";
+                    equipmentSlotButtons[i].interactable = false;
+                    continue;
+                }
+                if (equipmentLevel < EquipmentService.DefaultEquipmentLevel)
+                {
+                    equipmentSlotLabels[i].text = slotName + "\n미장착";
+                    equipmentSlotButtons[i].interactable = false;
+                    hasEmptySlot = true;
+                    continue;
+                }
+
+                bool isMax = equipmentLevel >= EquipmentService.MaxEquipmentLevel;
+                equipmentSlotLabels[i].text = slotName + "  LV." + equipmentLevel + "\n" +
+                    (isMax ? "MAX" : "강화  ● " +
+                        EquipmentService.GetUpgradeCost(selected, slot).ToString("N0"));
+                equipmentSlotButtons[i].interactable = !isMax;
+            }
+
+            recommendedEquipmentLabel.text = hasEmptySlot ? "추천 일괄 장착" : "장착 완료";
+            recommendedEquipmentButton.interactable = owned && hasEmptySlot;
         }
 
         static Text CreateField(LobbyUiFactory ui, RectTransform parent, string label, float y)

@@ -62,6 +62,7 @@
     <Compile Include="Assets\StarfallAcademy\Editor\StageDatabaseBootstrap.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\StoryArchiveSceneBuilder.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\GachaSceneBuilder.cs" />
+    <Compile Include="Assets\StarfallAcademy\Editor\MetaCoreDiagnostics.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\LobbyArtImporter.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\CharacterArtImporter.cs" />
     <Compile Include="Assets\StarfallAcademy\Editor\Story\StoryDatabaseBootstrap.cs" />

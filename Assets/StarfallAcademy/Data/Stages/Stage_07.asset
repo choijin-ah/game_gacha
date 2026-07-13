@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4598b5b3c1c0d4d4f8bc2e0cf7a7e728, type: 3}
+  m_Name: Stage_07
+  m_EditorClassIdentifier: Assembly-CSharp::StarfallAcademy.Lobby.StageData
+  stageId: STG_MAIN_03_02
+  chapter: CHAPTER 3
+  displayName: 포식자의 흔적
+  description: 격파되지 않으면 강력한 공격을 준비하는 정예 포식자를 추적하세요.
+  category: 0
+  enemyName: 균열 포식자
+  enemyCount: 2
+  enemyLevel: 32
+  enemyMaxHp: 4200
+  enemyAttack: 390
+  enemySpeed: 78
+  bossStage: 0
+  enemyArchetype: 3
+  enemyWeaknesses: 000000000100000003000000
+  enemyDefense: 110
+  enemyMaxBreak: 230
+  enemyDelayResistance: 0.3
+  enemyEffectResistance: 0.25
+  initialSkillPoints: 3
+  enemyLineup: []
+  showsDangerWarning: 1
+  bossPhaseTwoEnabled: 0
+  bossPhaseTwoThreshold: 0.5
+  bossPhaseTwoAttackMultiplier: 1.15
+  bossPhaseTwoSpeedBonus: 10
+  bossPhaseTwoSummonCount: 0
+  recommendedPower: 17000
+  staminaCost: 14
+  accountExperienceReward: 140
+  firstClearPremiumCurrency: 30
+  rewardCredits: 26000
+  rewardSkillMaterials: 42
+  threeStarTurnLimit: 20
+  sweepEnabled: 1

@@ -11,8 +11,8 @@ namespace StarfallAcademy.Lobby
     public sealed class TurnBattleModel
     {
         readonly List<CombatUnit> players = new List<CombatUnit>(FormationState.MaxMembers);
-        readonly List<CombatUnit> enemies = new List<CombatUnit>(3);
-        readonly List<CombatUnit> units = new List<CombatUnit>(FormationState.MaxMembers + 3);
+        readonly List<CombatUnit> enemies = new List<CombatUnit>(StageData.MaxEnemyCount);
+        readonly List<CombatUnit> units = new List<CombatUnit>(FormationState.MaxMembers + StageData.MaxEnemyCount);
         readonly HashSet<CombatUnit> phaseTwoApplied = new HashSet<CombatUnit>();
         readonly Dictionary<CombatUnit, int> heatStacks = new Dictionary<CombatUnit, int>();
         readonly Dictionary<Guid, bool> targetWasBroken = new Dictionary<Guid, bool>();
@@ -186,7 +186,7 @@ namespace StarfallAcademy.Lobby
         void BuildEnemies(StageData stageData)
         {
             StageEnemyEntry[] lineup = stageData.EnemyLineup;
-            int count = Mathf.Min(3, lineup == null ? 0 : lineup.Length);
+            int count = Mathf.Min(StageData.MaxEnemyCount, lineup == null ? 0 : lineup.Length);
             for (int slot = 0; slot < count; slot++)
             {
                 StageEnemyEntry entry = lineup[slot];
@@ -399,7 +399,8 @@ namespace StarfallAcademy.Lobby
 
         void SummonPhaseTwoEnemies(CombatUnit boss)
         {
-            int summonCount = Mathf.Min(stage.BossPhaseTwoSummonCount, 3 - enemies.Count);
+            int summonCount = Mathf.Min(stage.BossPhaseTwoSummonCount,
+                StageData.MaxEnemyCount - enemies.Count);
             for (int i = 0; i < summonCount; i++)
             {
                 int slot = enemies.Count;

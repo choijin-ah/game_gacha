@@ -1,0 +1,82 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ac7c66f8d07436240bead683476b22e5, type: 3}
+  m_Name: Character 5
+  m_EditorClassIdentifier: Assembly-CSharp::StarfallAcademy.Lobby.CharacterData
+  characterId: CHR_0006
+  displayName: 루미
+  affiliation: 설화 의료부
+  description: 냉기의 결정을 회복 마법으로 바꾸어 위기의 아군을 구합니다.
+  portrait: {fileID: 21300000, guid: e22a3ccc18465f7498d592a483ed2bca, type: 3}
+  gachaArt: {fileID: 21300000, guid: e22a3ccc18465f7498d592a483ed2bca, type: 3}
+  accentColor: {r: 0.48, g: 0.72, b: 0.94, a: 1}
+  role: 3
+  attackType: 2
+  rarity: 5
+  level: 1
+  combatPower: 1150
+  maxLevel: 100
+  levelUpBaseCreditCost: 1000
+  levelUpCreditCostGrowth: 250
+  combatPowerPerLevel: 118
+  skillName: 서리꽃 치료
+  skillIcon: {fileID: 0}
+  defaultSkillIcon: 3
+  skillMaxLevel: 10
+  skillBaseMaterialCost: 20
+  skillMaterialCostGrowth: 10
+  combatPowerPerSkillLevel: 250
+  battleElement: 1
+  maxHpOverride: 0
+  attackOverride: 0
+  defenseOverride: 0
+  speedOverride: 96
+  critChance: 0.05
+  critDamage: 1.5
+  maxEnergyOverride: 100
+  aggroWeight: 0.7
+  basicAction:
+    actionName: 빙결 탄환
+    icon: {fileID: 0}
+    targetType: 0
+    damageMultiplier: 0.8
+    healingMultiplier: 0
+    fixedValue: 0
+    skillPointCost: -1
+    energyCost: 0
+    energyGain: 20
+    breakDamage: 30
+    element: 1
+  skillAction:
+    actionName: 서리꽃 치료
+    icon: {fileID: 0}
+    targetType: 6
+    damageMultiplier: 0
+    healingMultiplier: 0.26
+    fixedValue: 150
+    skillPointCost: 1
+    energyCost: 0
+    energyGain: 30
+    breakDamage: 0
+    element: 1
+  ultimateAction:
+    actionName: 영원의 설화
+    icon: {fileID: 0}
+    targetType: 3
+    damageMultiplier: 0
+    healingMultiplier: 0.2
+    fixedValue: 180
+    skillPointCost: 0
+    energyCost: 100
+    energyGain: 0
+    breakDamage: 0
+    element: 1

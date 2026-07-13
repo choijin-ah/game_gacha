@@ -13,6 +13,7 @@ namespace StarfallAcademy.Lobby
         LobbyUiFactory ui;
         LobbyToastOverlay toast;
         Text balanceValue;
+        Text resourceValue;
         bool changingScene;
 
         void Awake()
@@ -119,6 +120,9 @@ namespace StarfallAcademy.Lobby
             balanceValue = ui.CreateText("Crystal Balance", "0", wallet, 20, FontStyle.Normal,
                 UrbanFantasyStyle.Silver, new Vector2(1, .5f), new Vector2(1, .5f),
                 new Vector2(-90, 0), new Vector2(150, 36), TextAnchor.MiddleRight);
+            resourceValue = ui.CreateText("Resource Balance", string.Empty, bar, 13, FontStyle.Normal,
+                UrbanFantasyStyle.Muted, new Vector2(1, .5f), new Vector2(1, .5f),
+                new Vector2(-530, 0), new Vector2(300, 40), TextAnchor.MiddleRight);
         }
 
         void BuildShopContent(RectTransform root)
@@ -179,10 +183,26 @@ namespace StarfallAcademy.Lobby
                 new Vector2(310, 24), TextAnchor.MiddleCenter);
 
             ui.CreateText("Shop Footer",
-                "현재는 테스트용 별의 결정 상품만 제공됩니다. 이후 재화 및 교환 상품을 이 화면에 추가할 수 있습니다.",
+                "무료 테스트 보급은 유지되며, 아래 교환 상품으로 행동력과 성장 재화를 보충할 수 있습니다.",
                 workspace, 13, FontStyle.Normal, UrbanFantasyStyle.Muted,
-                new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 49),
+                new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 25),
                 new Vector2(-100, 30), TextAnchor.MiddleCenter);
+
+            CreateExchangeButton(workspace, "Stamina Supply", -370, "행동력 +60\n♦ 50",
+                BuyStamina);
+            CreateExchangeButton(workspace, "Credit Supply", 0, "크레딧 50,000\n♦ 100",
+                BuyCredits);
+            CreateExchangeButton(workspace, "Skill Core Supply", 370, "스킬 코어 50\n● 20,000",
+                BuySkillMaterials);
+        }
+
+        void CreateExchangeButton(RectTransform parent, string name, float x, string label,
+            System.Action action)
+        {
+            GameObject button = ui.CreateButton(name, parent, new Vector2(.5f, 0),
+                new Vector2(x, 88), new Vector2(320, 78), label, 15,
+                UrbanFantasyStyle.PanelSoft, action);
+            UrbanFantasyStyle.AddBorder(ui, button.GetComponent<RectTransform>());
         }
 
         void ReceiveFreeCrystals()
@@ -192,10 +212,51 @@ namespace StarfallAcademy.Lobby
             toast.Show("별의 결정 1,600개를 받았습니다.");
         }
 
+        void BuyStamina()
+        {
+            if (!StaminaService.Default.TryPurchasePremiumCharge(50, 60, true, out int added))
+            {
+                toast.Show(PlayerWallet.PremiumCurrency < 50
+                    ? "별의 결정이 부족합니다" : "행동력을 더 충전할 수 없습니다");
+                return;
+            }
+            RefreshBalance();
+            toast.Show("행동력 " + added + "을 충전했습니다");
+        }
+
+        void BuyCredits()
+        {
+            if (!PlayerWallet.TryExchangePremiumForCredits(100, 50000))
+            {
+                toast.Show("별의 결정이 부족합니다");
+                return;
+            }
+            RefreshBalance();
+            toast.Show("크레딧 50,000을 받았습니다");
+        }
+
+        void BuySkillMaterials()
+        {
+            if (!PlayerWallet.TryExchangeCreditsForSkillMaterials(20000, 50))
+            {
+                toast.Show("크레딧이 부족합니다");
+                return;
+            }
+            RefreshBalance();
+            toast.Show("스킬 코어 50개를 받았습니다");
+        }
+
         void RefreshBalance()
         {
             if (balanceValue != null)
                 balanceValue.text = PlayerWallet.PremiumCurrency.ToString("N0");
+            if (resourceValue != null)
+            {
+                StaminaSnapshot stamina = StaminaService.Default.GetSnapshot();
+                resourceValue.text = "◆ " + stamina.Current + "/" + stamina.Maximum + "   ● "
+                    + PlayerWallet.Credits.ToString("N0") + "   ◇ "
+                    + PlayerWallet.SkillMaterials.ToString("N0");
+            }
         }
 
         void ReturnToLobby()

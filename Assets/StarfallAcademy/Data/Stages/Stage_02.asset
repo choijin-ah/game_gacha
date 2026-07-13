@@ -17,6 +17,7 @@ MonoBehaviour:
   displayName: "\uD3D0\uC1C4\uB41C \uC9C0\uD558\uC5ED"
   description: "\uB3C4\uC2DC\uC758 \uC774\uC0C1 \uD604\uC0C1\uC744 \uC870\uC0AC\uD558\uACE0
     \uB3C4\uC2DC \uB9DD\uB839\uC744(\uB97C) \uC81C\uC555\uD558\uC138\uC694."
+  category: 0
   enemyName: "\uB3C4\uC2DC \uB9DD\uB839"
   enemyCount: 3
   enemyLevel: 10
@@ -25,5 +26,10 @@ MonoBehaviour:
   enemySpeed: 52
   bossStage: 0
   recommendedPower: 5000
+  staminaCost: 9
+  accountExperienceReward: 90
+  firstClearPremiumCurrency: 30
   rewardCredits: 8500
   rewardSkillMaterials: 15
+  threeStarTurnLimit: 20
+  sweepEnabled: 1

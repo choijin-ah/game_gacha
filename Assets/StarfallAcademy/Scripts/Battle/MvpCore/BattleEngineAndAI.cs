@@ -139,6 +139,7 @@ namespace StarfallAcademy.Lobby
         public UltimateQueue Ultimates { get; }
         public CombatUnit CurrentActor => Turns.CurrentActor;
         public BattleOutcome Outcome => CalculateOutcome();
+        public int RegularTurnsCompleted { get; private set; }
 
         public BattleCombatCore(IEnumerable<CombatUnit> combatants, int initialSkillPoints = 3,
             int maximumSkillPoints = 5, int? deterministicSeed = null)
@@ -202,7 +203,11 @@ namespace StarfallAcademy.Lobby
             if (!interrupt && !ReferenceEquals(request.Actor, Turns.CurrentActor))
                 return Failed(request, "It is not this unit's turn.");
             ActionResolution resolution = executor.Execute(request);
-            if (resolution.Success && request.ConsumesRegularTurn) Turns.CompleteRegularTurn(request.Actor);
+            if (resolution.Success && request.ConsumesRegularTurn)
+            {
+                Turns.CompleteRegularTurn(request.Actor);
+                RegularTurnsCompleted++;
+            }
             PublishOutcomeIfChanged();
             return resolution;
         }

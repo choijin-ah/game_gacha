@@ -49,6 +49,7 @@ namespace StarfallAcademy.Lobby
         }
 
         readonly Dictionary<CombatUnit, UnitView> unitViews = new Dictionary<CombatUnit, UnitView>();
+        readonly Dictionary<Guid, string> autoDecisionReasons = new Dictionary<Guid, string>();
         readonly List<TurnOrderView> turnOrderViews = new List<TurnOrderView>();
         readonly List<Image> skillPointPips = new List<Image>();
 
@@ -56,6 +57,7 @@ namespace StarfallAcademy.Lobby
         StageData stage;
         StageDatabase stageDatabase;
         TurnBattleModel battle;
+        AutoDecisionService autoDecisionService;
         RectTransform battlefieldRoot;
 
         Text actionLabel;
@@ -63,6 +65,7 @@ namespace StarfallAcademy.Lobby
         Text logLabel;
         Text queueLabel;
         Text autoLabel;
+        Text autoPresetLabel;
         Text speedLabel;
         Text commandActorLabel;
         Text attackButtonLabel;
@@ -91,6 +94,7 @@ namespace StarfallAcademy.Lobby
         bool paused;
         bool battleFinished;
         bool changingScene;
+        bool victoryProgressCommitted;
 
         void Awake()
         {
@@ -151,6 +155,7 @@ namespace StarfallAcademy.Lobby
             }
 
             battle = new TurnBattleModel(formation, stage);
+            autoDecisionService = new AutoDecisionService(battle);
             BuildTurnOrderPanel(safeRoot);
             BuildBattlefield(safeRoot);
             BuildActionPanel(safeRoot);
@@ -164,9 +169,17 @@ namespace StarfallAcademy.Lobby
         {
             if (BattleSession.SelectedStage != null) return BattleSession.SelectedStage;
             if (stageDatabase == null || stageDatabase.Stages.Count == 0) return null;
-            int index = Mathf.Clamp(StageProgression.HighestUnlocked, 0, stageDatabase.Stages.Count - 1);
-            BattleSession.SelectedStageIndex = index;
-            BattleSession.SelectedStage = stageDatabase.Stages[index];
+            int index = -1;
+            for (int i = 0; i < stageDatabase.Stages.Count; i++)
+            {
+                StageData candidate = stageDatabase.Stages[i];
+                if (candidate == null || candidate.Category != StageCategory.Main
+                    || !StageProgression.IsUnlocked(candidate, i, stageDatabase.Stages)) continue;
+                index = i;
+                if (!StageProgression.IsCleared(candidate)) break;
+            }
+            if (index < 0) return null;
+            BattleSession.BeginRun(stageDatabase.Stages[index], index, false);
             return BattleSession.SelectedStage;
         }
 
@@ -212,13 +225,19 @@ namespace StarfallAcademy.Lobby
                 Vector2.zero, new Vector2(180, 28), TextAnchor.MiddleCenter);
 
             GameObject auto = ui.CreateButton("Auto Battle", header, new Vector2(1, .5f),
-                new Vector2(-250, 0), new Vector2(130, 46), string.Empty, 13,
+                new Vector2(-424, 0), new Vector2(106, 46), string.Empty, 12,
                 UrbanFantasyStyle.PanelStrong, ToggleAuto);
             UrbanFantasyStyle.AddBorder(ui, auto.GetComponent<RectTransform>());
             autoLabel = auto.GetComponentInChildren<Text>();
 
+            GameObject preset = ui.CreateButton("Auto Preset", header, new Vector2(1, .5f),
+                new Vector2(-293, 0), new Vector2(144, 46), string.Empty, 11,
+                UrbanFantasyStyle.PanelStrong, CycleAutoPreset);
+            UrbanFantasyStyle.AddBorder(ui, preset.GetComponent<RectTransform>());
+            autoPresetLabel = preset.GetComponentInChildren<Text>();
+
             GameObject speed = ui.CreateButton("Battle Speed", header, new Vector2(1, .5f),
-                new Vector2(-126, 0), new Vector2(94, 46), string.Empty, 14,
+                new Vector2(-156, 0), new Vector2(84, 46), string.Empty, 14,
                 UrbanFantasyStyle.PanelStrong, ToggleSpeed);
             UrbanFantasyStyle.AddBorder(ui, speed.GetComponent<RectTransform>());
             speedLabel = speed.GetComponentInChildren<Text>();
@@ -302,7 +321,7 @@ namespace StarfallAcademy.Lobby
                     new Vector2(262, 246));
             }
 
-            int enemyCount = Mathf.Min(3, battle.Enemies.Count);
+            int enemyCount = Mathf.Min(StageData.MaxEnemyCount, battle.Enemies.Count);
             for (int i = 0; i < enemyCount; i++)
             {
                 CombatUnit unit = battle.Enemies[i];
@@ -572,15 +591,18 @@ namespace StarfallAcademy.Lobby
             while (battle.Outcome == BattleOutcome.Ongoing && !changingScene)
             {
                 yield return WaitForPauseAndUltimateTarget();
+                QueueReadyAutoUltimates();
                 while (battle.Outcome == BattleOutcome.Ongoing
                     && battle.TryExecuteNextUltimate(out ActionResolution queuedBeforeTurn))
                 {
                     if (queuedBeforeTurn?.Request?.Actor != null)
                         turnLabel.text = "ULTIMATE  ·  " + queuedBeforeTurn.Request.Actor.DisplayName;
-                    ShowResolution(queuedBeforeTurn, true);
+                    ShowResolution(queuedBeforeTurn, true,
+                        TakeAutoDecisionReason(queuedBeforeTurn?.Request));
                     RefreshAll();
                     yield return PresentationWait(.62f);
                     yield return WaitForPauseAndUltimateTarget();
+                    QueueReadyAutoUltimates();
                 }
                 if (battle.Outcome != BattleOutcome.Ongoing) break;
 
@@ -641,21 +663,24 @@ namespace StarfallAcademy.Lobby
                 if (request != null && battle.Outcome == BattleOutcome.Ongoing)
                 {
                     ActionResolution resolution = battle.Execute(request);
-                    ShowResolution(resolution, false);
+                    ShowResolution(resolution, false, TakeAutoDecisionReason(request));
                     RefreshAll();
                     yield return PresentationWait(resolution != null && resolution.Success ? .48f : .2f);
                 }
 
                 yield return WaitForPauseAndUltimateTarget();
+                QueueReadyAutoUltimates();
                 while (battle.Outcome == BattleOutcome.Ongoing
                     && battle.TryExecuteNextUltimate(out ActionResolution ultimateResolution))
                 {
                     if (ultimateResolution?.Request?.Actor != null)
                         turnLabel.text = "ULTIMATE  ·  " + ultimateResolution.Request.Actor.DisplayName;
-                    ShowResolution(ultimateResolution, true);
+                    ShowResolution(ultimateResolution, true,
+                        TakeAutoDecisionReason(ultimateResolution?.Request));
                     RefreshAll();
                     yield return PresentationWait(.62f);
                     yield return WaitForPauseAndUltimateTarget();
+                    QueueReadyAutoUltimates();
                 }
             }
 
@@ -683,19 +708,43 @@ namespace StarfallAcademy.Lobby
 
         ActionRequest CreateAutoAction(CombatUnit actor)
         {
-            if (actor?.CharacterData == null) return null;
-            BattleActionConfig basic = actor.CharacterData.BasicAction;
-            BattleActionConfig skill = actor.CharacterData.SkillAction;
-            bool canSpend = skill.SkillPointCost <= 0 || battle.SkillPoints >= skill.SkillPointCost;
-            bool injuredAlly = false;
-            for (int i = 0; i < battle.Players.Count; i++)
-                if (battle.Players[i].IsAlive && battle.Players[i].HpRatio < .72f) injuredAlly = true;
-            bool healingSkill = skill.HealingMultiplier > 0f || skill.TargetType == BattleTargetType.LowestHpAlly;
-            bool useSkill = canSpend && (healingSkill ? injuredAlly
-                : (actor.RegularActionsCompleted + actor.Slot) % 3 == 1);
-            BattleActionConfig chosen = useSkill ? skill : basic;
-            CombatUnit target = battle.AutoTarget(actor, chosen);
-            return battle.CreatePlayerAction(actor, chosen, target);
+            if (autoDecisionService == null) return null;
+            AutoActionDecision decision = autoDecisionService.DecideRegularAction(actor,
+                AutoBattleSettings.CurrentPreset);
+            if (decision.Request != null)
+            {
+                autoDecisionReasons[decision.Request.RequestId] = decision.Reason;
+                logLabel.text = "AUTO  ·  " + decision.Reason;
+            }
+            else if (!string.IsNullOrWhiteSpace(decision.Reason))
+                logLabel.text = "AUTO  ·  " + decision.Reason;
+            return decision.Request;
+        }
+
+        void QueueReadyAutoUltimates()
+        {
+            if (!GameSettings.AutoBattle || autoDecisionService == null || paused
+                || battleFinished || targetSelectionActive
+                || battle.Outcome != BattleOutcome.Ongoing) return;
+            var queued = new List<string>();
+            foreach (CombatUnit player in battle.Players)
+            {
+                AutoUltimateDecision decision = autoDecisionService.TryQueueUltimate(player,
+                    AutoBattleSettings.CurrentPreset);
+                if (!decision.Queued || decision.Request == null) continue;
+                autoDecisionReasons[decision.Request.RequestId] = decision.Reason;
+                queued.Add(player.DisplayName + " · " + decision.Reason);
+            }
+            if (queued.Count > 0)
+                logLabel.text = "AUTO ULT  ·  " + string.Join("   /   ", queued);
+        }
+
+        string TakeAutoDecisionReason(ActionRequest request)
+        {
+            if (request == null || !autoDecisionReasons.TryGetValue(request.RequestId, out string reason))
+                return string.Empty;
+            autoDecisionReasons.Remove(request.RequestId);
+            return reason;
         }
 
         void ChooseBasicAttack()
@@ -839,7 +888,7 @@ namespace StarfallAcademy.Lobby
             }
         }
 
-        void ShowResolution(ActionResolution resolution, bool ultimate)
+        void ShowResolution(ActionResolution resolution, bool ultimate, string autoReason = "")
         {
             if (resolution == null)
             {
@@ -849,6 +898,7 @@ namespace StarfallAcademy.Lobby
             if (!resolution.Success)
             {
                 logLabel.text = LocalizeFailure(resolution.FailureReason);
+                AppendAutoReason(autoReason);
                 return;
             }
 
@@ -874,6 +924,13 @@ namespace StarfallAcademy.Lobby
             if (broken) detail += "  ·  BREAK";
             if (detail.Length == 0) detail = "효과 적용";
             logLabel.text = actorName + "  /  " + skillName + "  ·  " + detail;
+            AppendAutoReason(autoReason);
+        }
+
+        void AppendAutoReason(string reason)
+        {
+            if (!string.IsNullOrWhiteSpace(reason))
+                logLabel.text += "\nAUTO 판단  ·  " + reason;
         }
 
         void RefreshAll()
@@ -899,7 +956,7 @@ namespace StarfallAcademy.Lobby
                 added = true;
             }
             if (!added) return;
-            int count = Mathf.Min(3, battle.Enemies.Count);
+            int count = Mathf.Min(StageData.MaxEnemyCount, battle.Enemies.Count);
             for (int i = 0; i < count; i++)
             {
                 CombatUnit enemy = battle.Enemies[i];
@@ -1065,11 +1122,21 @@ namespace StarfallAcademy.Lobby
 
         void ToggleAuto()
         {
+            // AUTO and speed predate account progression. Keep both available so adding the
+            // new profile system does not remove an existing player-facing feature.
             GameSettings.AutoBattle = !GameSettings.AutoBattle;
             if (GameSettings.AutoBattle && targetSelectionActive && !targetIsUltimate)
                 ClearTargetingState();
             RefreshHeaderControls();
             RefreshAll();
+        }
+
+        void CycleAutoPreset()
+        {
+            AutoBattlePreset preset = AutoBattleSettings.CyclePreset();
+            RefreshHeaderControls();
+            if (logLabel != null)
+                logLabel.text = "AUTO 전략  ·  " + AutoBattleSettings.GetDisplayName(preset);
         }
 
         void ToggleSpeed()
@@ -1084,6 +1151,13 @@ namespace StarfallAcademy.Lobby
             {
                 autoLabel.text = GameSettings.AutoBattle ? "AUTO  ON" : "AUTO  OFF";
                 autoLabel.color = GameSettings.AutoBattle ? UrbanFantasyStyle.Gold : UrbanFantasyStyle.Muted;
+            }
+            if (autoPresetLabel != null)
+            {
+                autoPresetLabel.text = "전략  ·  "
+                    + AutoBattleSettings.GetDisplayName(AutoBattleSettings.CurrentPreset);
+                autoPresetLabel.color = GameSettings.AutoBattle
+                    ? UrbanFantasyStyle.Gold : UrbanFantasyStyle.Silver;
             }
             if (speedLabel != null)
             {
@@ -1112,26 +1186,77 @@ namespace StarfallAcademy.Lobby
         {
             if (battleFinished) return;
             battleFinished = true;
+            victoryProgressCommitted = false;
             paused = false;
             if (pauseLayer != null) pauseLayer.SetActive(false);
             resultLayer.SetActive(true);
             resultLayer.transform.SetAsLastSibling();
+            bool rewardEligible = BattleSession.EntryStaminaPaid;
+            if (rewardEligible) MissionService.RecordBattleCompleted();
             if (victory)
             {
-                bool firstClear = StageProgression.Complete(stage, BattleSession.SelectedStageIndex);
-                PlayerWallet.AddCredits(stage.RewardCredits);
-                PlayerWallet.AddSkillMaterials(stage.RewardSkillMaterials);
+                int defeatedAllies = 0;
+                foreach (CombatUnit player in battle.Players)
+                    if (!player.IsAlive) defeatedAllies++;
+
+                if (!rewardEligible)
+                {
+                    resultTitle.text = "연 습 전 완 료";
+                    resultBody.text = stage.DisplayName
+                        + " 전투를 완료했습니다.\n\n씬 직접 실행은 연습 전투로 처리되어 "
+                        + "행동력·보상·별·해금·임무 진행이 적용되지 않습니다.";
+                    nextButton.interactable = true;
+                    nextButtonLabel.text = "보상 전투 도전";
+                    return;
+                }
+
+                string runId = string.IsNullOrWhiteSpace(BattleSession.RunId)
+                    ? Guid.NewGuid().ToString("N") : BattleSession.RunId;
+                bool firstClearCandidate = !StageProgression.IsCleared(stage);
+                StageCompletionResult completion = null;
+                Action rollbackProgression = StageProgression.CaptureRollback(stage);
+                RewardGrantResult reward = RewardService.Default.GrantReward(
+                    "battle:" + stage.Id + ":" + runId,
+                    new RewardBundle(stage.RewardCredits, stage.RewardSkillMaterials,
+                        stage.AccountExperienceReward,
+                        firstClearCandidate ? stage.FirstClearPremiumCurrency : 0),
+                    () => completion = StageProgression.Complete(stage,
+                        BattleSession.SelectedStageIndex, defeatedAllies,
+                        battle.Core.RegularTurnsCompleted, false),
+                    rollbackProgression);
+                victoryProgressCommitted = reward.Succeeded || reward.AlreadyProcessed;
+                if (reward.AlreadyProcessed && completion == null)
+                    completion = StageProgression.Complete(stage,
+                        BattleSession.SelectedStageIndex, defeatedAllies,
+                        battle.Core.RegularTurnsCompleted);
+                if (!victoryProgressCommitted || completion == null)
+                {
+                    StaminaService.Default.Charge(stage.StaminaCost, true);
+                    resultTitle.text = "보 상 처 리 실 패";
+                    resultBody.text = "진행도와 보상을 저장하지 못해 행동력을 반환했습니다. 다시 도전하세요.";
+                    nextButton.interactable = true;
+                    nextButtonLabel.text = "다시 도전";
+                    return;
+                }
+
                 int nextIndex = FindNextStageIndex(BattleSession.SelectedStageIndex);
                 bool hasNext = nextIndex >= 0;
                 resultTitle.text = "작 전 완 료";
-                resultBody.text = stage.DisplayName + " 클리어\n\n●  "
+                resultBody.text = stage.DisplayName + " 클리어   " + StarLabel(completion.EarnedStars)
+                    + "\nACTION " + completion.RegularTurns.ToString("N0") + "  ·  전투 불능 "
+                    + completion.DefeatedAllies + "명\n\n●  "
                     + stage.RewardCredits.ToString("N0") + " 크레딧     ◇  "
                     + stage.RewardSkillMaterials + " " + PlayerWallet.SkillMaterialDisplayName
-                    + (firstClear ? hasNext
+                    + "     EXP " + stage.AccountExperienceReward
+                    + (completion.FirstClear ? "     ♦ " + stage.FirstClearPremiumCurrency : string.Empty)
+                    + (completion.FirstClear ? hasNext
                         ? "\n\nFIRST CLEAR  ·  다음 작전이 해금되었습니다"
-                        : "\n\nFIRST CLEAR  ·  마지막 작전을 완료했습니다" : string.Empty);
+                        : stage.Category == StageCategory.Main
+                            ? "\n\nFIRST CLEAR  ·  마지막 작전을 완료했습니다"
+                            : "\n\nFIRST CLEAR  ·  던전 소탕 조건을 확인하세요" : string.Empty);
                 nextButton.interactable = hasNext;
-                nextButtonLabel.text = hasNext ? "다음 작전" : "마지막 작전";
+                nextButtonLabel.text = hasNext ? "다음 작전"
+                    : stage.Category == StageCategory.Main ? "마지막 작전" : "던전 완료";
             }
             else
             {
@@ -1144,23 +1269,44 @@ namespace StarfallAcademy.Lobby
 
         void NextStage()
         {
-            if (!battleFinished) return;
-            if (battle.Outcome == BattleOutcome.Victory)
+            if (!battleFinished || changingScene) return;
+            StageData targetStage = stage;
+            int targetIndex = BattleSession.SelectedStageIndex;
+            if (battle.Outcome == BattleOutcome.Victory && victoryProgressCommitted)
             {
                 int nextIndex = FindNextStageIndex(BattleSession.SelectedStageIndex);
                 if (nextIndex < 0) return;
-                BattleSession.SelectedStageIndex = nextIndex;
-                BattleSession.SelectedStage = stageDatabase.Stages[nextIndex];
+                targetIndex = nextIndex;
+                targetStage = stageDatabase.Stages[nextIndex];
             }
+            if (targetStage == null || !StaminaService.Default.TrySpend(targetStage.StaminaCost))
+            {
+                nextButton.interactable = false;
+                nextButtonLabel.text = "행동력 부족";
+                resultBody.text += "\n\n행동력이 부족합니다. 스테이지 선택으로 돌아가세요.";
+                return;
+            }
+            MissionService.RecordStaminaSpent(targetStage.StaminaCost);
+            BattleSession.BeginRun(targetStage, targetIndex, true);
             changingScene = true;
             SceneManager.LoadScene(SceneNames.TurnBattle);
         }
 
+        static string StarLabel(int stars) => new string('★', Mathf.Clamp(stars, 0, 3))
+            + new string('☆', 3 - Mathf.Clamp(stars, 0, 3));
+
         int FindNextStageIndex(int currentIndex)
         {
             if (stageDatabase == null) return -1;
+            StageData current = currentIndex >= 0 && currentIndex < stageDatabase.Stages.Count
+                ? stageDatabase.Stages[currentIndex] : null;
+            if (current == null) return -1;
             for (int i = currentIndex + 1; i < stageDatabase.Stages.Count; i++)
-                if (stageDatabase.Stages[i] != null) return i;
+            {
+                StageData candidate = stageDatabase.Stages[i];
+                if (candidate != null && candidate.Category == current.Category
+                    && StageProgression.IsUnlocked(candidate, i, stageDatabase.Stages)) return i;
+            }
             return -1;
         }
 

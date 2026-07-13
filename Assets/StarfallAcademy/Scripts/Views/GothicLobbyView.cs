@@ -19,19 +19,24 @@ namespace StarfallAcademy.Lobby
 
         public static void Build(RectTransform root, LobbyUiFactory ui, Action openCharacterArchive,
             Action openStoryArchive, Action openFormation, Action openGacha, Action openShop,
-            Action openStageSelect, Action openSettings, Action<string, string> openPopup,
+            Action openStageSelect, Action openMissions, Action openSettings, Action<string, string> openPopup,
             Action<string> showToast)
         {
             BuildProfile(root, ui, openPopup);
             BuildCurrencies(root, ui, openGacha, openSettings, openPopup);
             BuildStoryBanner(root, ui, openStoryArchive);
             BuildQuickCards(root, ui, openCharacterArchive, openFormation, openShop, openPopup);
-            BuildBattleArea(root, ui, openStoryArchive, openGacha, openStageSelect, openPopup);
+            BuildBattleArea(root, ui, openStoryArchive, openGacha, openStageSelect, openMissions, openPopup);
             BuildSocialButtons(root, ui, openPopup, showToast);
         }
 
         static void BuildProfile(RectTransform root, LobbyUiFactory ui, Action<string, string> openPopup)
         {
+            int accountLevel = PlayerProfileService.CurrentLevel;
+            int accountExperience = PlayerProfileService.CurrentExperience;
+            int requiredExperience = PlayerProfileService.Default.GetRequiredExperienceForNextLevel(accountLevel);
+            float experienceRatio = requiredExperience > 0
+                ? Mathf.Clamp01(accountExperience / (float)requiredExperience) : 1f;
             RectTransform panel = ui.CreateImage("Profile Area", root, new Color(0, 0, 0, .18f),
                 new Vector2(0, 1), new Vector2(0, 1), new Vector2(184, -91), new Vector2(344, 150)).rectTransform;
 
@@ -59,19 +64,27 @@ namespace StarfallAcademy.Lobby
                 if (portraitIcon != null) portraitIcon.color = new Color(.82f, .82f, .86f, .86f);
             }
 
-            ui.CreateText("Level", "LV. 72", panel, 15, FontStyle.Normal, Muted,
+            ui.CreateText("Level", "ACCOUNT LV. " + accountLevel, panel, 15, FontStyle.Normal, Muted,
                 new Vector2(0, 1), new Vector2(0, 1), new Vector2(203, -27), new Vector2(156, 24), TextAnchor.MiddleLeft);
             ui.CreateText("Player Name", LobbyContent.TeacherName, panel, 26, FontStyle.Normal, Silver,
                 new Vector2(0, 1), new Vector2(0, 1), new Vector2(229, -60), new Vector2(208, 40), TextAnchor.MiddleLeft);
-            ui.CreateText("EXP Value", "84,670 / 125,000", panel, 15, FontStyle.Normal, Silver,
+            ui.CreateText("EXP Value", requiredExperience > 0
+                    ? accountExperience.ToString("N0") + " / " + requiredExperience.ToString("N0") : "MAX LEVEL",
+                panel, 15, FontStyle.Normal, Silver,
                 new Vector2(0, 1), new Vector2(0, 1), new Vector2(229, -98), new Vector2(208, 25), TextAnchor.MiddleLeft);
             Image track = ui.CreateImage("EXP Track", panel, new Color(1, 1, 1, .16f),
                 new Vector2(0, 1), new Vector2(0, 1), new Vector2(229, -122), new Vector2(208, 3));
             ui.CreateImage("EXP Fill", track.transform, new Color(.88f, .88f, .92f, .88f),
-                Vector2.zero, new Vector2(.68f, 1), Vector2.zero, Vector2.zero);
+                Vector2.zero, new Vector2(experienceRatio, 1), Vector2.zero, Vector2.zero);
             GameObject add = ui.CreateButton("Profile Detail", panel, new Vector2(1, 0), new Vector2(-16, 19),
                 new Vector2(28, 28), "+", 18, PanelHover,
-                () => openPopup("프로필", "LV. 72  " + LobbyContent.TeacherName + "\n\nUID 120 072 411\n칭호  별을 이끄는 사람"),
+                () =>
+                {
+                    StaminaSnapshot stamina = StaminaService.Default.GetSnapshot();
+                    openPopup("프로필", "ACCOUNT LV. " + PlayerProfileService.CurrentLevel + "  "
+                        + LobbyContent.TeacherName + "\n\n행동력  " + stamina.Current + " / " + stamina.Maximum
+                        + "\nUID 120 072 411\n칭호  별을 이끄는 사람");
+                },
                 TextAnchor.MiddleCenter, false);
             AddBorder(ui, add.GetComponent<RectTransform>());
         }
@@ -176,7 +189,8 @@ namespace StarfallAcademy.Lobby
         }
 
         static void BuildBattleArea(RectTransform root, LobbyUiFactory ui, Action openStoryArchive,
-            Action openGacha, Action openStageSelect, Action<string, string> openPopup)
+            Action openGacha, Action openStageSelect, Action openMissions,
+            Action<string, string> openPopup)
         {
             GameObject battle = ui.CreateButton("Battle", root, new Vector2(1, 0),
                 new Vector2(RightCenter, 320), new Vector2(RightWidth, 142), string.Empty, 20, Panel,
@@ -203,11 +217,13 @@ namespace StarfallAcademy.Lobby
                     ? openStoryArchive
                     : i == 1
                     ? openGacha
-                    : () => openPopup(korean[index], korean[index] + " 메뉴입니다.");
+                    : openMissions;
                 GameObject card = CreateCard(ui, root, "Lower " + korean[i], new Vector2(1, 0),
                     new Vector2(-511 + i * 191, 161), new Vector2(178, 136),
                     icons[i], korean[i], english[i], action);
                 if (i == 1) AddNotification(ui, card.transform, new Vector2(1, 1), new Vector2(-12, -12));
+                if (i == 2 && MissionService.HasClaimableDailyReward())
+                    AddNotification(ui, card.transform, new Vector2(1, 1), new Vector2(-12, -12));
             }
         }
 

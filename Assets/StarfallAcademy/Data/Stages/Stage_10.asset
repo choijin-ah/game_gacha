@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4598b5b3c1c0d4d4f8bc2e0cf7a7e728, type: 3}
+  m_Name: Stage_10
+  m_EditorClassIdentifier: Assembly-CSharp::StarfallAcademy.Lobby.StageData
+  stageId: STG_MAIN_03_03
+  chapter: CHAPTER 3
+  displayName: 심연의 관측자
+  description: 예고 공격과 소환을 반복하는 관측자의 2단계 패턴을 돌파하세요.
+  category: 0
+  enemyName: 심연의 관측자
+  enemyCount: 1
+  enemyLevel: 40
+  enemyMaxHp: 14500
+  enemyAttack: 520
+  enemySpeed: 82
+  bossStage: 1
+  enemyArchetype: 4
+  enemyWeaknesses: 000000000200000004000000
+  enemyDefense: 175
+  enemyMaxBreak: 420
+  enemyDelayResistance: 0.55
+  enemyEffectResistance: 0.72
+  initialSkillPoints: 3
+  enemyLineup: []
+  showsDangerWarning: 1
+  bossPhaseTwoEnabled: 1
+  bossPhaseTwoThreshold: 0.5
+  bossPhaseTwoAttackMultiplier: 1.28
+  bossPhaseTwoSpeedBonus: 14
+  bossPhaseTwoSummonCount: 2
+  recommendedPower: 22000
+  staminaCost: 20
+  accountExperienceReward: 220
+  firstClearPremiumCurrency: 50
+  rewardCredits: 52000
+  rewardSkillMaterials: 110
+  threeStarTurnLimit: 26
+  sweepEnabled: 1

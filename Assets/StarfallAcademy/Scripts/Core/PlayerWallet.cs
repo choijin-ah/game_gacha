@@ -29,11 +29,17 @@ namespace StarfallAcademy.Lobby
 
         public static bool TrySpendPremiumCurrency(int amount)
         {
+            if (!TrySpendPremiumCurrencyDeferred(amount)) return false;
+            PlayerPrefs.Save();
+            return true;
+        }
+
+        internal static bool TrySpendPremiumCurrencyDeferred(int amount)
+        {
             amount = Mathf.Max(0, amount);
             int current = PremiumCurrency;
             if (current < amount) return false;
             PlayerPrefs.SetInt(PremiumCurrencyKey, current - amount);
-            PlayerPrefs.Save();
             return true;
         }
 
@@ -48,6 +54,14 @@ namespace StarfallAcademy.Lobby
         public static bool TrySpendSkillMaterials(int amount) => TrySpend(SkillMaterialsKey, DefaultSkillMaterials, amount);
         public static void AddCredits(int amount) => Add(CreditsKey, DefaultCredits, amount);
         public static void AddSkillMaterials(int amount) => Add(SkillMaterialsKey, DefaultSkillMaterials, amount);
+
+        public static bool TryExchangePremiumForCredits(int premiumCost, int creditAmount) =>
+            TryExchange(PremiumCurrencyKey, DefaultPremiumCurrency, premiumCost,
+                CreditsKey, DefaultCredits, creditAmount);
+
+        public static bool TryExchangeCreditsForSkillMaterials(int creditCost, int materialAmount) =>
+            TryExchange(CreditsKey, DefaultCredits, creditCost,
+                SkillMaterialsKey, DefaultSkillMaterials, materialAmount);
 
         static int GetOrCreate(string key, int defaultValue)
         {
@@ -71,6 +85,20 @@ namespace StarfallAcademy.Lobby
             long next = (long)GetOrCreate(key, defaultValue) + amount;
             PlayerPrefs.SetInt(key, ClampWalletValue(next));
             PlayerPrefs.Save();
+        }
+
+        static bool TryExchange(string sourceKey, int sourceDefault, int cost,
+            string targetKey, int targetDefault, int amount)
+        {
+            cost = Mathf.Max(0, cost);
+            amount = Mathf.Max(0, amount);
+            int current = GetOrCreate(sourceKey, sourceDefault);
+            if (current < cost) return false;
+            PlayerPrefs.SetInt(sourceKey, current - cost);
+            PlayerPrefs.SetInt(targetKey,
+                ClampWalletValue((long)GetOrCreate(targetKey, targetDefault) + amount));
+            PlayerPrefs.Save();
+            return true;
         }
 
         static int ClampWalletValue(long value)
