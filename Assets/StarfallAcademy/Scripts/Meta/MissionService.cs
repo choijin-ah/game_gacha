@@ -78,6 +78,7 @@ namespace StarfallAcademy.Lobby
         const string DayKey = "StarfallAcademy.Meta.Mission.UtcDay";
         const string ProgressPrefix = "StarfallAcademy.Meta.Mission.Progress.";
         const string ClaimedPrefix = "StarfallAcademy.Meta.Mission.Claimed.";
+        const double MinimumForwardDayIntervalSeconds = 20d * 60d * 60d;
 
         readonly object syncRoot = new object();
         readonly IMetaStorage storage;
@@ -85,6 +86,7 @@ namespace StarfallAcademy.Lobby
         readonly RewardService rewardService;
         readonly List<DailyMissionDefinition> definitions;
         readonly Dictionary<DailyMissionType, DailyMissionDefinition> definitionsByType;
+        long lastForwardDayChangeTimestamp;
 
         public static MissionService Default { get; } = new MissionService(
             PlayerPrefsMetaStorage.Shared, SystemUtcClock.Shared, RewardService.Default);
@@ -166,7 +168,7 @@ namespace StarfallAcademy.Lobby
                 if (!progress.IsComplete)
                     return new MissionClaimResult(MissionClaimStatus.NotCompleted, progress, default);
 
-                string day = CurrentDayId();
+                string day = storage.GetString(DayKey, CurrentDayId());
                 string transactionId = "daily-mission:" + day + ":" + definition.Id;
                 RewardGrantResult rewardResult = rewardService.GrantReward(
                     transactionId, definition.Reward);
@@ -232,8 +234,25 @@ namespace StarfallAcademy.Lobby
         void EnsureCurrentDay()
         {
             string currentDay = CurrentDayId();
-            if (string.Equals(storage.GetString(DayKey, string.Empty), currentDay,
-                StringComparison.Ordinal)) return;
+            string acceptedDay = storage.GetString(DayKey, string.Empty);
+            if (string.Equals(acceptedDay, currentDay, StringComparison.Ordinal)) return;
+
+            // The accepted day is a persistent high-water mark. Moving the device
+            // clock backwards must never reset missions or mint another day key.
+            bool hasAcceptedDay = TryParseDay(acceptedDay, out DateTime acceptedDate);
+            bool hasCurrentDay = TryParseDay(currentDay, out DateTime currentDate);
+            if (hasAcceptedDay && hasCurrentDay)
+            {
+                if (currentDate <= acceptedDate) return;
+                if (clock is SystemUtcClock && lastForwardDayChangeTimestamp != 0)
+                {
+                    long elapsed = System.Diagnostics.Stopwatch.GetTimestamp()
+                        - lastForwardDayChangeTimestamp;
+                    double elapsedSeconds = elapsed
+                        / (double)System.Diagnostics.Stopwatch.Frequency;
+                    if (elapsedSeconds < MinimumForwardDayIntervalSeconds) return;
+                }
+            }
 
             storage.SetString(DayKey, currentDay);
             for (int i = 0; i < definitions.Count; i++)
@@ -242,6 +261,8 @@ namespace StarfallAcademy.Lobby
                 storage.SetInt(ClaimedKey(definitions[i]), 0);
             }
             storage.Save();
+            if (hasAcceptedDay && hasCurrentDay && clock is SystemUtcClock)
+                lastForwardDayChangeTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
         }
 
         string CurrentDayId()
@@ -252,6 +273,10 @@ namespace StarfallAcademy.Lobby
                 now = DateTime.SpecifyKind(now, DateTimeKind.Utc);
             return now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         }
+
+        static bool TryParseDay(string value, out DateTime day) =>
+            DateTime.TryParseExact(value, "yyyyMMdd", CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out day);
 
         static string ProgressKey(DailyMissionDefinition definition) => ProgressPrefix + definition.Id;
         static string ClaimedKey(DailyMissionDefinition definition) => ClaimedPrefix + definition.Id;

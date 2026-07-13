@@ -229,6 +229,22 @@ namespace StarfallAcademy.Lobby
         [SerializeField] CharacterBattleActionData skillAction;
         [SerializeField] CharacterBattleActionData ultimateAction;
 
+        [Header("Battle Audio")]
+        [SerializeField, Tooltip("일반 공격이 성공했을 때 재생할 효과음입니다.")]
+        AudioClip basicAttackSfx;
+        [SerializeField, Tooltip("일반 공격 시 무작위로 한 개를 재생합니다.")]
+        AudioClip[] basicAttackVoices;
+        [SerializeField, Tooltip("전투 스킬이 성공했을 때 재생할 효과음입니다.")]
+        AudioClip skillSfx;
+        [SerializeField, Tooltip("전투 스킬 사용 시 무작위로 한 개를 재생합니다.")]
+        AudioClip[] skillVoices;
+        [SerializeField, Tooltip("필살기가 성공했을 때 재생할 효과음입니다.")]
+        AudioClip ultimateSfx;
+        [SerializeField, Tooltip("필살기 사용 시 무작위로 한 개를 재생합니다.")]
+        AudioClip[] ultimateVoices;
+        [SerializeField, Range(0f, 1f)] float actionSfxVolume = 1f;
+        [SerializeField, Range(0f, 1f)] float voiceVolume = 1f;
+
         public string Id => string.IsNullOrWhiteSpace(characterId) ? name : characterId;
         public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
         public string Affiliation => affiliation;
@@ -270,6 +286,39 @@ namespace StarfallAcademy.Lobby
         public BattleActionConfig BasicAction => ResolveBasicAction();
         public BattleActionConfig SkillAction => ResolveSkillAction();
         public BattleActionConfig UltimateAction => ResolveUltimateAction();
+        public float ActionSfxVolume => Mathf.Clamp01(actionSfxVolume);
+        public float VoiceVolume => Mathf.Clamp01(voiceVolume);
+
+        public AudioClip ResolveActionSfx(BattleActionKind kind)
+        {
+            switch (kind)
+            {
+                case BattleActionKind.Basic: return basicAttackSfx;
+                case BattleActionKind.Skill: return skillSfx;
+                case BattleActionKind.Ultimate: return ultimateSfx;
+                default: return null;
+            }
+        }
+
+        public AudioClip ResolveActionVoice(BattleActionKind kind)
+        {
+            AudioClip[] clips;
+            switch (kind)
+            {
+                case BattleActionKind.Basic: clips = basicAttackVoices; break;
+                case BattleActionKind.Skill: clips = skillVoices; break;
+                case BattleActionKind.Ultimate: clips = ultimateVoices; break;
+                default: return null;
+            }
+            if (clips == null || clips.Length == 0) return null;
+            int first = Random.Range(0, clips.Length);
+            for (int i = 0; i < clips.Length; i++)
+            {
+                AudioClip clip = clips[(first + i) % clips.Length];
+                if (clip != null) return clip;
+            }
+            return null;
+        }
 
         public int ResolveMaxHp(int effectiveCombatPower)
         {
@@ -346,6 +395,8 @@ namespace StarfallAcademy.Lobby
             critDamage = Mathf.Max(1f, critDamage);
             maxEnergyOverride = Mathf.Max(0, maxEnergyOverride);
             aggroWeight = Mathf.Max(0f, aggroWeight);
+            actionSfxVolume = Mathf.Clamp01(actionSfxVolume);
+            voiceVolume = Mathf.Clamp01(voiceVolume);
             EnsureBattleActionDefaults();
             basicAction.Sanitize();
             skillAction.Sanitize();

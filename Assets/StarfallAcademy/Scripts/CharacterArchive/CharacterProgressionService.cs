@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace StarfallAcademy.Lobby
@@ -9,25 +10,38 @@ namespace StarfallAcademy.Lobby
         const string LevelPrefix = "StarfallAcademy.Character.Level.";
         const string SkillLevelPrefix = "StarfallAcademy.Character.SkillLevel.";
 
-        public static bool IsOwned(CharacterData character) =>
-            character != null && PlayerPrefs.GetInt(OwnedPrefix + character.Id, 0) == 1;
+        public static bool IsOwned(CharacterData character)
+        {
+            MetaPlayerPrefsTransaction.RecoverPending();
+            return character != null && PlayerPrefs.GetInt(OwnedPrefix + character.Id, 0) == 1;
+        }
 
         public static bool RegisterPull(CharacterData character)
         {
             if (character == null) return false;
             bool isNew = !IsOwned(character);
-            PlayerPrefs.SetInt(OwnedPrefix + character.Id, 1);
-            if (!PlayerPrefs.HasKey(LevelPrefix + character.Id))
-                PlayerPrefs.SetInt(LevelPrefix + character.Id, character.Level);
-            if (!PlayerPrefs.HasKey(SkillLevelPrefix + character.Id))
-                PlayerPrefs.SetInt(SkillLevelPrefix + character.Id, 1);
-            PlayerPrefs.Save();
+            var writes = new List<MetaIntWrite>(3);
+            AppendPullRegistrationWrites(character, writes);
+            if (!MetaPlayerPrefsTransaction.Commit(writes)) return false;
             return isNew;
+        }
+
+        internal static void AppendPullRegistrationWrites(CharacterData character,
+            ICollection<MetaIntWrite> writes)
+        {
+            if (character == null || writes == null) return;
+            string id = character.Id;
+            writes.Add(new MetaIntWrite(OwnedPrefix + id, 1));
+            if (!PlayerPrefs.HasKey(LevelPrefix + id))
+                writes.Add(new MetaIntWrite(LevelPrefix + id, character.Level));
+            if (!PlayerPrefs.HasKey(SkillLevelPrefix + id))
+                writes.Add(new MetaIntWrite(SkillLevelPrefix + id, 1));
         }
 
         public static int GetLevel(CharacterData character)
         {
             if (character == null) return 1;
+            MetaPlayerPrefsTransaction.RecoverPending();
             return Mathf.Clamp(PlayerPrefs.GetInt(LevelPrefix + character.Id, character.Level),
                 character.Level, character.MaxLevel);
         }
@@ -35,6 +49,7 @@ namespace StarfallAcademy.Lobby
         public static int GetSkillLevel(CharacterData character)
         {
             if (character == null) return 1;
+            MetaPlayerPrefsTransaction.RecoverPending();
             return Mathf.Clamp(PlayerPrefs.GetInt(SkillLevelPrefix + character.Id, 1), 1,
                 character.SkillMaxLevel);
         }
@@ -75,13 +90,18 @@ namespace StarfallAcademy.Lobby
                 return false;
             }
             int cost = GetLevelUpCost(character);
-            if (!PlayerWallet.TrySpendCredits(cost))
+            var writes = new List<MetaIntWrite>(2);
+            if (!PlayerWallet.TryStageCreditsSpend(cost, writes))
             {
                 message = "크레딧이 부족합니다";
                 return false;
             }
-            PlayerPrefs.SetInt(LevelPrefix + character.Id, level + 1);
-            PlayerPrefs.Save();
+            writes.Add(new MetaIntWrite(LevelPrefix + character.Id, level + 1));
+            if (!MetaPlayerPrefsTransaction.Commit(writes))
+            {
+                message = "Save failed. Please try again.";
+                return false;
+            }
             MissionService.RecordEnhancement();
             message = character.DisplayName + "  LV. " + (level + 1);
             return true;
@@ -101,13 +121,18 @@ namespace StarfallAcademy.Lobby
                 return false;
             }
             int cost = GetSkillUpCost(character);
-            if (!PlayerWallet.TrySpendSkillMaterials(cost))
+            var writes = new List<MetaIntWrite>(2);
+            if (!PlayerWallet.TryStageSkillMaterialsSpend(cost, writes))
             {
                 message = PlayerWallet.SkillMaterialDisplayName + "가 부족합니다";
                 return false;
             }
-            PlayerPrefs.SetInt(SkillLevelPrefix + character.Id, level + 1);
-            PlayerPrefs.Save();
+            writes.Add(new MetaIntWrite(SkillLevelPrefix + character.Id, level + 1));
+            if (!MetaPlayerPrefsTransaction.Commit(writes))
+            {
+                message = "Save failed. Please try again.";
+                return false;
+            }
             MissionService.RecordEnhancement();
             message = character.SkillName + "  LV. " + (level + 1);
             return true;

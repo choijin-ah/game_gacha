@@ -8,7 +8,9 @@ namespace StarfallAcademy.Lobby
     [RequireComponent(typeof(RectTransform))]
     public sealed class ShopScreen : MonoBehaviour
     {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         const int FreeCrystalAmount = 1600;
+#endif
 
         LobbyUiFactory ui;
         LobbyToastOverlay toast;
@@ -141,6 +143,7 @@ namespace StarfallAcademy.Lobby
             ui.CreateText("Section Title", "별의 결정 충전", workspace, 31, FontStyle.Normal,
                 UrbanFantasyStyle.Silver, new Vector2(0, 1), new Vector2(0, 1),
                 new Vector2(216, -94), new Vector2(350, 42), TextAnchor.MiddleLeft);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             ui.CreateText("Development Notice", "개발용 무료 충전  /  횟수 제한 없음", workspace, 15,
                 FontStyle.Normal, UrbanFantasyStyle.Gold,
                 new Vector2(1, 1), new Vector2(1, 1), new Vector2(-250, -78),
@@ -187,6 +190,7 @@ namespace StarfallAcademy.Lobby
                 workspace, 13, FontStyle.Normal, UrbanFantasyStyle.Muted,
                 new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 25),
                 new Vector2(-100, 30), TextAnchor.MiddleCenter);
+#endif
 
             CreateExchangeButton(workspace, "Stamina Supply", -370, "행동력 +60\n♦ 50",
                 BuyStamina);
@@ -205,12 +209,15 @@ namespace StarfallAcademy.Lobby
             UrbanFantasyStyle.AddBorder(ui, button.GetComponent<RectTransform>());
         }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         void ReceiveFreeCrystals()
         {
             PlayerWallet.AddPremiumCurrency(FreeCrystalAmount);
             RefreshBalance();
             toast.Show("별의 결정 1,600개를 받았습니다.");
         }
+
+#endif
 
         void BuyStamina()
         {

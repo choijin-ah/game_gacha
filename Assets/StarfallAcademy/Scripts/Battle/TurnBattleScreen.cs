@@ -59,6 +59,9 @@ namespace StarfallAcademy.Lobby
         TurnBattleModel battle;
         AutoDecisionService autoDecisionService;
         RectTransform battlefieldRoot;
+        AudioSource battleSfxSource;
+        AudioSource battleVoiceSource;
+        float currentVoiceVolumeScale = 1f;
 
         Text actionLabel;
         Text turnLabel;
@@ -98,8 +101,15 @@ namespace StarfallAcademy.Lobby
 
         void Awake()
         {
+            BuildBattleAudio();
             BuildCanvas();
             BuildScreen();
+        }
+
+        void OnEnable()
+        {
+            GameSettings.Changed += ApplyBattleAudioVolume;
+            ApplyBattleAudioVolume();
         }
 
         void Update()
@@ -115,6 +125,27 @@ namespace StarfallAcademy.Lobby
         void OnDisable()
         {
             StopAllCoroutines();
+            GameSettings.Changed -= ApplyBattleAudioVolume;
+        }
+
+        void BuildBattleAudio()
+        {
+            battleSfxSource = gameObject.AddComponent<AudioSource>();
+            battleSfxSource.playOnAwake = false;
+            battleSfxSource.loop = false;
+            battleSfxSource.spatialBlend = 0f;
+            battleVoiceSource = gameObject.AddComponent<AudioSource>();
+            battleVoiceSource.playOnAwake = false;
+            battleVoiceSource.loop = false;
+            battleVoiceSource.spatialBlend = 0f;
+            ApplyBattleAudioVolume();
+        }
+
+        void ApplyBattleAudioVolume()
+        {
+            if (battleSfxSource != null) battleSfxSource.volume = GameSettings.SfxVolume;
+            if (battleVoiceSource != null)
+                battleVoiceSource.volume = GameSettings.SfxVolume * currentVoiceVolumeScale;
         }
 
         void BuildCanvas()
@@ -138,6 +169,7 @@ namespace StarfallAcademy.Lobby
             ui = new LobbyUiFactory(new LobbyTheme());
             stageDatabase = Resources.Load<StageDatabase>("Data/StageDatabase");
             stage = ResolveStage();
+            GameAudioDirector.RefreshForCurrentScene(stage);
             CharacterDatabase database = Resources.Load<CharacterDatabase>("Data/CharacterDatabase");
             FormationState formation = new FormationState();
             formation.Load(database);
@@ -902,6 +934,8 @@ namespace StarfallAcademy.Lobby
                 return;
             }
 
+            PlayActionAudio(resolution);
+
             string actorName = resolution.Request?.Actor?.DisplayName ?? "유닛";
             string skillName = resolution.Request?.SkillName;
             if (string.IsNullOrWhiteSpace(skillName)) skillName = ultimate ? "필살기" : "행동";
@@ -915,7 +949,8 @@ namespace StarfallAcademy.Lobby
                 critical |= result.IsCritical;
             }
             foreach (HealingResult result in resolution.HealingResults) totalHealing += result.AppliedHealing;
-            foreach (BreakResult result in resolution.BreakResults) broken |= result.BreakTriggered;
+            foreach (BreakResult result in resolution.BreakResults)
+                broken |= result.BreakTriggered && result.Target != null && result.Target.IsBroken;
 
             string detail = totalDamage > 0 ? totalDamage.ToString("N0") + " 피해" : string.Empty;
             if (totalHealing > 0) detail += (detail.Length > 0 ? "  ·  " : string.Empty)
@@ -925,6 +960,25 @@ namespace StarfallAcademy.Lobby
             if (detail.Length == 0) detail = "효과 적용";
             logLabel.text = actorName + "  /  " + skillName + "  ·  " + detail;
             AppendAutoReason(autoReason);
+        }
+
+        void PlayActionAudio(ActionResolution resolution)
+        {
+            CharacterData character = resolution?.Request?.Actor?.CharacterData;
+            if (character == null) return;
+
+            BattleActionKind kind = resolution.Request.Kind;
+            AudioClip sfx = character.ResolveActionSfx(kind);
+            if (sfx != null && battleSfxSource != null)
+                battleSfxSource.PlayOneShot(sfx, character.ActionSfxVolume);
+
+            AudioClip voice = character.ResolveActionVoice(kind);
+            if (voice == null || battleVoiceSource == null) return;
+            currentVoiceVolumeScale = character.VoiceVolume;
+            battleVoiceSource.Stop();
+            battleVoiceSource.clip = voice;
+            ApplyBattleAudioVolume();
+            battleVoiceSource.Play();
         }
 
         void AppendAutoReason(string reason)

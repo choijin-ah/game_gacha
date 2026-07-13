@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace StarfallAcademy.Lobby
@@ -9,6 +10,8 @@ namespace StarfallAcademy.Lobby
     {
         static Sprite roundedSprite;
         static Sprite circleSprite;
+        static readonly System.Collections.Generic.Dictionary<Texture2D, Sprite> TextureSprites =
+            new System.Collections.Generic.Dictionary<Texture2D, Sprite>();
 
         public LobbyTheme Theme { get; }
         public LobbyUiAssets Assets { get; }
@@ -73,7 +76,7 @@ namespace StarfallAcademy.Lobby
         {
             Image image = CreateImage(name, parent, color, anchor, anchor, position, size, true);
             Button button = image.gameObject.AddComponent<Button>();
-            button.navigation = new Navigation { mode = Navigation.Mode.None };
+            button.navigation = new Navigation { mode = Navigation.Mode.Automatic, wrapAround = true };
             if (useArtSkin && Assets.HasButtonSkin && size.x / Mathf.Max(1, size.y) >= 2f)
             {
                 image.sprite = Assets.ButtonNormal;
@@ -104,6 +107,7 @@ namespace StarfallAcademy.Lobby
             CreateText("Label", label, image.transform, fontSize, FontStyle.Bold, Theme.White,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, alignment);
             image.gameObject.AddComponent<UiPressFeedback>();
+            SelectIfNothingFocused(button);
             return image.gameObject;
         }
 
@@ -135,10 +139,20 @@ namespace StarfallAcademy.Lobby
             Image image = CreateImage(name, parent, Color.clear, anchor, anchor, position, size, true);
             Button button = image.gameObject.AddComponent<Button>();
             button.transition = Selectable.Transition.None;
+            // Invisible pointer hit areas are deliberately excluded from focus navigation. Their
+            // corresponding visible controls remain keyboard/gamepad navigable.
             button.navigation = new Navigation { mode = Navigation.Mode.None };
             if (action != null)
                 button.onClick.AddListener(() => action());
             return button;
+        }
+
+        static void SelectIfNothingFocused(Button button)
+        {
+            EventSystem events = EventSystem.current;
+            if (events == null || events.currentSelectedGameObject != null || button == null
+                || !button.IsActive() || !button.IsInteractable()) return;
+            events.SetSelectedGameObject(button.gameObject);
         }
 
         public void CreateBadge(Transform parent, Vector2 anchor, Vector2 position, string value)
@@ -152,7 +166,12 @@ namespace StarfallAcademy.Lobby
 
         public Sprite SpriteFromTexture(Texture2D texture)
         {
-            return Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(.5f, .5f), 100);
+            if (texture == null) return null;
+            if (TextureSprites.TryGetValue(texture, out Sprite cached) && cached != null) return cached;
+            Sprite created = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height),
+                new Vector2(.5f, .5f), 100);
+            TextureSprites[texture] = created;
+            return created;
         }
 
         static Sprite RoundedSprite()

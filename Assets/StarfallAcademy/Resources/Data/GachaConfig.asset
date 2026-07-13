@@ -20,7 +20,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d19b8e0ea70527443bf49eb446a02063, type: 2}
   topRarityRatePercent: 3
   featuredSharePercent: 50
-  fourStarRatePercent: 15
+  fourStarRatePercent: 97
   hardPity: 80
   softPityStart: 70
   softPityBonusPerPullPercent: 6

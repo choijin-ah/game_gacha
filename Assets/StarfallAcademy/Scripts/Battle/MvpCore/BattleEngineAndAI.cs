@@ -230,6 +230,8 @@ namespace StarfallAcademy.Lobby
             resolution = null;
             if (!Ultimates.TryDequeue(out ActionRequest request)) return false;
             resolution = Execute(request);
+            if (!resolution.Success && Ultimates.ReleaseReservation(request))
+                Events.Publish(new ResourcesChangedEvent(Resources.SkillPoints, request.Actor));
             return true;
         }
 

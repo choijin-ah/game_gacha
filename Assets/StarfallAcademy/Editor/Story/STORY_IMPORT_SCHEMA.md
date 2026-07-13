@@ -42,7 +42,7 @@
 ## 배경/연출/오디오
 
 - `background`, `cg`: Sprite 에셋 경로/GUID/이름
-- `bgm`, `sfx`: AudioClip 에셋 경로/GUID/이름
+- `bgm`, `sfx`, `voice`: BGM, 효과음, 대사 음성 AudioClip의 에셋 경로/GUID/이름
 - `transition`: `None`, `Cut`, `CrossFade`, `FadeToBlack`, `FadeToWhite`, `SlideLeft`, `SlideRight`
 - `effects`: `Shake|FlashWhite|FlashBlack|FadeIn|FadeOut|Vignette`처럼 여러 항목 연결
 - `shake_strength`, `effect_duration`, `text_speed`, `auto_duration`: 초/강도 실수값
@@ -56,4 +56,4 @@
 - `next_line`: 이동할 라인 ID
 - `condition`: 선택지 표시 조건 키
 
-에디터 창의 **템플릿 헤더 복사** 또는 **CSV 템플릿 저장** 버튼으로 전체 열을 바로 만들 수 있습니다. Merge는 같은 `episode_id`/`line_id`를 갱신하고 다른 라인은 보존합니다. Replace는 데이터베이스 등록 목록을 가져온 에피소드로 교체하지만 기존 `.asset` 파일을 지우지 않습니다.
+에디터 창의 **Excel 양식 다운로드**, **CSV 양식 저장**, **템플릿 헤더 복사** 버튼으로 전체 열을 바로 만들 수 있습니다. Excel 양식에는 헤더 고정, 필터, 필수 열 표시, 주요 입력값 드롭다운과 예시 대사 2줄이 포함됩니다. Merge는 같은 `episode_id`/`line_id`를 갱신하고 다른 라인은 보존합니다. Replace는 데이터베이스 등록 목록을 가져온 에피소드로 교체하지만 기존 `.asset` 파일을 지우지 않습니다.

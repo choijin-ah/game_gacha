@@ -144,6 +144,10 @@ namespace StarfallAcademy.Lobby
         [SerializeField, TextArea(2, 4)] string description = "도시 외곽에 나타난 적을 정리하세요.";
         [SerializeField] StageCategory category = StageCategory.Main;
 
+        [Header("Audio")]
+        [SerializeField, Tooltip("이 스테이지의 전투 씬에서 재생할 BGM입니다. 비우면 기본 전투 BGM을 사용합니다.")]
+        AudioClip battleBgm;
+
         [Header("Enemies")]
         [SerializeField] string enemyName = "그림자 잔재";
         [SerializeField, Range(1, MaxEnemyCount)] int enemyCount = 3;
@@ -189,6 +193,7 @@ namespace StarfallAcademy.Lobby
         public string DisplayName => displayName;
         public string Description => description;
         public StageCategory Category => category;
+        public AudioClip BattleBgm => battleBgm;
         public string EnemyName => enemyName;
         public int EnemyCount => ConfiguredEnemyCount > 0
             ? ConfiguredEnemyCount : Mathf.Clamp(enemyCount, 1, MaxEnemyCount);

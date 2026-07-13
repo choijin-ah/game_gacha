@@ -35,3 +35,56 @@ MonoBehaviour:
   skillBaseMaterialCost: 20
   skillMaterialCostGrowth: 10
   combatPowerPerSkillLevel: 250
+  battleElement: 0
+  maxHpOverride: 0
+  attackOverride: 0
+  defenseOverride: 0
+  speedOverride: 0
+  critChance: 0.05
+  critDamage: 1.5
+  maxEnergyOverride: 0
+  aggroWeight: 1
+  basicAction:
+    actionName: 
+    icon: {fileID: 0}
+    targetType: 0
+    damageMultiplier: 1
+    healingMultiplier: 0
+    fixedValue: 0
+    skillPointCost: 0
+    energyCost: 0
+    energyGain: 0
+    breakDamage: 0
+    element: -1
+  skillAction:
+    actionName: 
+    icon: {fileID: 0}
+    targetType: 0
+    damageMultiplier: 1
+    healingMultiplier: 0
+    fixedValue: 0
+    skillPointCost: 0
+    energyCost: 0
+    energyGain: 0
+    breakDamage: 0
+    element: -1
+  ultimateAction:
+    actionName: 
+    icon: {fileID: 0}
+    targetType: 0
+    damageMultiplier: 1
+    healingMultiplier: 0
+    fixedValue: 0
+    skillPointCost: 0
+    energyCost: 0
+    energyGain: 0
+    breakDamage: 0
+    element: -1
+  basicAttackSfx: {fileID: 0}
+  basicAttackVoices: []
+  skillSfx: {fileID: 0}
+  skillVoices: []
+  ultimateSfx: {fileID: 0}
+  ultimateVoices: []
+  actionSfxVolume: 1
+  voiceVolume: 1

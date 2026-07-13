@@ -20,6 +20,7 @@ namespace StarfallAcademy.Lobby.Editor
         [MenuItem("Starfall/Rebuild/Formation Scene")]
         public static void Create()
         {
+            if (!SceneBuilderSafety.CanRunManualBuild()) return;
             if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
             Directory.CreateDirectory(Path.GetDirectoryName(ScenePath));
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -47,11 +48,7 @@ namespace StarfallAcademy.Lobby.Editor
                 SceneBuildSettingsUtility.Update();
                 return;
             }
-            if (EditorApplication.isCompiling || EditorApplication.isPlayingOrWillChangePlaymode)
-            {
-                EditorApplication.delayCall += EnsureSceneExists;
-                return;
-            }
+            if (!SceneBuilderSafety.TryBegin(ScenePath, EnsureSceneExists)) return;
 
             Directory.CreateDirectory(Path.GetDirectoryName(ScenePath));
             Scene previous = SceneManager.GetActiveScene();

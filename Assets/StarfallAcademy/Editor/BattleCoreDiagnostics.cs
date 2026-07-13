@@ -14,6 +14,8 @@ namespace StarfallAcademy.Lobby
             VerifyResourcesAndUltimateQueue();
             VerifyTurnOrderAndPreview();
             VerifyShieldBreakAndStatuses();
+            VerifyBattleRegressionCases();
+            VerifyStageTenPhaseTransition();
             VerifyEnemyWarningAndBossPhase();
             VerifyAutoDecisionCore();
             UnityEngine.Debug.Log("[Starfall Battle] Core smoke test passed.");
@@ -170,6 +172,153 @@ namespace StarfallAcademy.Lobby
 
             boss.TakeDamage(boss.MaxHp * .51f);
             Require(boss.Phase == 2, "보스 HP 50% 이하에서 2페이즈로 전환되지 않았습니다.");
+        }
+
+        static void VerifyBattleRegressionCases()
+        {
+            VerifyShieldRefresh();
+            VerifySelfStatusLifetime();
+            VerifyBreakDamageDefeat();
+            VerifyAggroTargeting();
+            VerifyUltimateReservationCleanup();
+            VerifyDisabledBossPhase();
+        }
+
+        static void VerifyShieldRefresh()
+        {
+            CombatUnit source = Unit("shield-source", BattleTeam.Player, 0, 100f);
+            CombatUnit target = Unit("shield-refresh-target", BattleTeam.Player, 1, 100f);
+            var shield = new StatusEffectInstance(StatusEffectType.Shield, 0f, 2, source,
+                StatusStackBehavior.RefreshDuration, effectId: "regression.shield", flatValue: 120f);
+            StatusApplyResult initial = target.ApplyStatus(shield);
+            target.TakeDamage(120f);
+            Require(initial.Applied && Near(target.Shield, 0f)
+                && Near(initial.Effect.RuntimeValue, 0f),
+                "Shield setup did not reach the depleted state.");
+
+            StatusApplyResult refreshed = target.ApplyStatus(shield);
+            Require(refreshed.Applied && refreshed.Merged && Near(target.Shield, 120f)
+                && Near(refreshed.Effect.RuntimeValue, 120f),
+                "Refreshing a depleted shield did not restore its capacity.");
+        }
+
+        static void VerifySelfStatusLifetime()
+        {
+            CombatUnit actor = Unit("self-status-actor", BattleTeam.Player, 0, 120f);
+            CombatUnit enemy = Unit("self-status-enemy", BattleTeam.Enemy, 0, 80f);
+            var core = new BattleCombatCore(new[] { actor, enemy }, deterministicSeed: DeterministicSeed);
+            Require(ReferenceEquals(core.NextActor(), actor),
+                "Self-status regression actor was not first in the turn order.");
+            var request = new ActionRequest(actor, BattleActionKind.Skill,
+                BattleTargetType.Self, actor)
+            {
+                SkillName = "Self status lifetime regression",
+                ConsumesRegularTurn = true
+            };
+            request.AddStatus(new StatusEffectInstance(StatusEffectType.AttackUp, .2f, 2,
+                actor, StatusStackBehavior.RefreshDuration, effectId: "regression.self-status"));
+            ActionResolution resolution = core.Execute(request);
+            Require(resolution.Success && actor.Statuses.Count == 1
+                && actor.Statuses[0].RemainingOwnerActions == 2,
+                "A self-applied status lost duration on the action that applied it.");
+            actor.CompleteOwnerRegularAction();
+            Require(actor.Statuses[0].RemainingOwnerActions == 1,
+                "A self-applied status did not tick on the following owner action.");
+        }
+
+        static void VerifyBreakDamageDefeat()
+        {
+            CombatUnit attacker = Unit("break-kill-attacker", BattleTeam.Player, 0, 120f);
+            CombatUnit target = Unit("break-kill-target", BattleTeam.Enemy, 0, 80f, breakMax: 10f);
+            target.SetWeaknesses(new[] { BattleElement.Fire });
+            target.TakeDamage(target.MaxHp - 1f);
+            var core = new BattleCombatCore(new[] { attacker, target }, deterministicSeed: DeterministicSeed);
+            int breakEvents = 0;
+            core.Events.Subscribe<BreakTriggeredEvent>(_ => breakEvents++);
+            var request = new ActionRequest(attacker, BattleActionKind.Skill,
+                BattleTargetType.SingleEnemy, target)
+            {
+                SkillName = "Break defeat regression",
+                Element = BattleElement.Fire,
+                BreakDamage = 10f,
+                ConsumesRegularTurn = false
+            };
+            ActionResolution resolution = core.Execute(request);
+            Require(resolution.Success && !target.IsAlive && !target.IsBroken
+                && breakEvents == 0 && resolution.BreakResults.Count == 1
+                && resolution.BreakResults[0].BreakTriggered
+                && resolution.DamageResults.Count == 1
+                && resolution.DefeatedUnits.Count == 1
+                && ReferenceEquals(resolution.DefeatedUnits[0], target)
+                && Near(attacker.Energy, 10f),
+                "Break bonus damage did not finalize defeat through the normal damage path.");
+        }
+
+        static void VerifyAggroTargeting()
+        {
+            CombatUnit enemy = Unit("aggro-enemy", BattleTeam.Enemy, 0, 100f);
+            CombatUnit ignored = Unit("aggro-zero", BattleTeam.Player, 0, 100f);
+            CombatUnit selected = Unit("aggro-weighted", BattleTeam.Player, 1, 100f);
+            ignored.AggroWeight = 0f;
+            selected.AggroWeight = 2f;
+            var targeting = new TargetingSystem(new Random(DeterministicSeed));
+            for (int i = 0; i < 16; i++)
+            {
+                IReadOnlyList<CombatUnit> result = targeting.Resolve(BattleTargetType.RandomEnemy,
+                    enemy, null, new[] { enemy, ignored, selected });
+                Require(result.Count == 1 && ReferenceEquals(result[0], selected),
+                    "Enemy random targeting ignored character aggro weights.");
+            }
+        }
+
+        static void VerifyUltimateReservationCleanup()
+        {
+            CombatUnit actor = Unit("queued-ultimate-actor", BattleTeam.Player, 0, 100f);
+            CombatUnit enemy = Unit("queued-ultimate-enemy", BattleTeam.Enemy, 0, 90f);
+            var core = new BattleCombatCore(new[] { actor, enemy }, deterministicSeed: DeterministicSeed);
+            actor.SetEnergy(actor.MaxEnergy);
+            var request = new ActionRequest(actor, BattleActionKind.Ultimate,
+                BattleTargetType.SingleEnemy, enemy)
+            {
+                EnergyCost = actor.MaxEnergy,
+                DamageMultiplier = 1f,
+                ConsumesRegularTurn = false
+            };
+            Require(core.QueueUltimate(request, out string failure),
+                "Ultimate reservation setup failed: " + failure);
+            actor.TakeDamage(actor.MaxHp);
+            Require(core.TryExecuteNextUltimate(out ActionResolution resolution)
+                && !resolution.Success && !request.ResourcesReserved
+                && Near(actor.Energy, actor.MaxEnergy),
+                "A dead queued ultimate actor kept or lost its reserved energy.");
+        }
+
+        static void VerifyDisabledBossPhase()
+        {
+            CombatUnit boss = Unit("disabled-phase-boss", BattleTeam.Enemy, 0, 100f);
+            boss.IsBoss = true;
+            boss.PhaseTwoEnabled = false;
+            boss.TakeDamage(boss.MaxHp * .75f);
+            Require(boss.Phase == 1,
+                "A boss entered phase two even though the stage phase flag was disabled.");
+        }
+
+        static void VerifyStageTenPhaseTransition()
+        {
+            const string path = "Assets/StarfallAcademy/Data/Stages/Stage_10.asset";
+            StageData stage = AssetDatabase.LoadAssetAtPath<StageData>(path);
+            Require(stage != null, "Stage 10 regression asset is missing: " + path);
+            var model = new TurnBattleModel(new FormationState(), stage, DeterministicSeed);
+            int enemiesBefore = model.Enemies.Count;
+            CombatUnit boss = null;
+            foreach (CombatUnit enemy in model.Enemies)
+                if (enemy.IsBoss) { boss = enemy; break; }
+            Require(boss != null && stage.BossPhaseTwoEnabled,
+                "Stage 10 is no longer configured as a phase-two boss stage.");
+            boss.TakeDamage(boss.MaxHp * (1f - stage.BossPhaseTwoThreshold + .01f));
+            model.NextActor();
+            Require(model.Enemies.Count > enemiesBefore,
+                "Stage 10 phase transition did not add its configured summons.");
         }
 
         static void VerifyAutoDecisionCore()

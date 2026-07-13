@@ -115,6 +115,7 @@ namespace StarfallAcademy.Lobby
         [SerializeField] Sprite cg;
         [SerializeField] AudioClip bgm;
         [SerializeField] AudioClip sfx;
+        [SerializeField] AudioClip voice;
 
         [Header("Direction")]
         [SerializeField] StoryTransition transition = StoryTransition.CrossFade;
@@ -148,6 +149,7 @@ namespace StarfallAcademy.Lobby
         public Sprite Cg { get => cg; set => cg = value; }
         public AudioClip Bgm { get => bgm; set => bgm = value; }
         public AudioClip Sfx { get => sfx; set => sfx = value; }
+        public AudioClip Voice { get => voice; set => voice = value; }
         public StoryTransition Transition { get => transition; set => transition = value; }
         public StoryScreenEffect Effects { get => effects; set => effects = value; }
         public float ShakeStrength { get => Mathf.Max(0f, shakeStrength); set => shakeStrength = Mathf.Max(0f, value); }
@@ -183,6 +185,7 @@ namespace StarfallAcademy.Lobby
                 cg = cg,
                 bgm = bgm,
                 sfx = sfx,
+                voice = voice,
                 transition = transition,
                 effects = effects,
                 shakeStrength = shakeStrength,

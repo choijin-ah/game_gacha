@@ -11,7 +11,10 @@ namespace StarfallAcademy.Lobby
         {
             VerifyRewardsAndProfile();
             VerifyStaminaRecovery();
+            VerifyClockRollbackProtection();
             VerifyDailyMissions();
+            VerifyPlayerPrefsJournal();
+            VerifyGachaRarityRules();
             Debug.Log("[Starfall Meta] 인메모리 핵심 경계 검증을 통과했습니다.");
         }
 
@@ -115,6 +118,51 @@ namespace StarfallAcademy.Lobby
                 "계정 레벨 기반 행동력 최대치 증가가 맞지 않습니다.");
         }
 
+        static void VerifyClockRollbackProtection()
+        {
+            var staminaStorage = new InMemoryMetaStorage();
+            var staminaProfile = new PlayerProfileService(staminaStorage);
+            var staminaClock = new ManualUtcClock(
+                new DateTime(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc));
+            var stamina = new StaminaService(staminaStorage, staminaProfile, staminaClock);
+            Require(stamina.TrySpend(10), "Rollback test could not spend stamina.");
+            staminaClock.Advance(StaminaService.RecoveryInterval);
+            Require(stamina.Current == 111, "Rollback test did not recover one stamina.");
+            staminaClock.UtcNow = new DateTime(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
+            Require(stamina.Current == 111,
+                "Moving the clock backwards changed stamina or its recovery anchor.");
+            staminaClock.UtcNow = new DateTime(2026, 7, 13, 10, 6, 0, DateTimeKind.Utc);
+            Require(stamina.Current == 111,
+                "Returning to an already-accounted future time recovered stamina twice.");
+            staminaClock.Advance(StaminaService.RecoveryInterval);
+            Require(stamina.Current == 112,
+                "Stamina did not resume after passing the preserved recovery anchor.");
+
+            var missionStorage = new InMemoryMetaStorage();
+            var missionProfile = new PlayerProfileService(missionStorage);
+            var missionRewards = new RewardService(missionStorage, missionProfile);
+            var missionClock = new ManualUtcClock(
+                new DateTime(2026, 7, 13, 23, 50, 0, DateTimeKind.Utc));
+            var missions = new MissionService(missionStorage, missionClock, missionRewards);
+            missions.AddProgress(DailyMissionType.Login);
+            Require(missions.ClaimReward(DailyMissionType.Login).Succeeded,
+                "Rollback test could not claim the first daily reward.");
+            missionClock.Advance(TimeSpan.FromMinutes(11));
+            missions.AddProgress(DailyMissionType.Login);
+            Require(missions.ClaimReward(DailyMissionType.Login).Succeeded,
+                "Rollback test could not claim the next-day reward.");
+            int creditsAfterNextDay = missionRewards.Credits;
+
+            missionClock.UtcNow = new DateTime(2026, 7, 13, 23, 50, 0, DateTimeKind.Utc);
+            Require(missions.GetProgress(DailyMissionType.Login).Claimed,
+                "Clock rollback reset an already accepted mission day.");
+            missionClock.UtcNow = new DateTime(2026, 7, 14, 0, 1, 0, DateTimeKind.Utc);
+            Require(missions.ClaimReward(DailyMissionType.Login).Status
+                    == MissionClaimStatus.AlreadyClaimed
+                && missionRewards.Credits == creditsAfterNextDay,
+                "Clock rollback/forward granted the same daily reward twice.");
+        }
+
         static void VerifyDailyMissions()
         {
             var storage = new InMemoryMetaStorage();
@@ -140,6 +188,41 @@ namespace StarfallAcademy.Lobby
             DailyMissionProgress reset = missions.GetProgress(DailyMissionType.Login);
             Require(reset.Current == 0 && !reset.Claimed && !reset.CanClaim,
                 "UTC 날짜 변경 시 일일 임무가 초기화되지 않았습니다.");
+        }
+
+        static void VerifyPlayerPrefsJournal()
+        {
+            Require(PlayerPrefsMetaStorage.VerifyTransactionJournal(out string error),
+                "PlayerPrefs journal integration failed: " + error);
+        }
+
+        static void VerifyGachaRarityRules()
+        {
+            Require(!GachaService.ValidateRarityPools(15f, 82f, true, 10,
+                    true, true, false, out _),
+                "A banner with a missing active 3-star pool was accepted.");
+            Require(GachaService.ValidateRarityPools(97f, 0f, true, 10,
+                    true, true, false, out _),
+                "The explicit 5-star 3% / 4-star 97% configuration was rejected.");
+
+            const int samples = 200000;
+            int top = 0, four = 0, three = 0;
+            var random = new System.Random(7319);
+            for (int i = 0; i < samples; i++)
+            {
+                int rarity = GachaService.SelectRarity(random.NextDouble() * 100.0,
+                    3f, 15f, false);
+                if (rarity >= 5) top++;
+                else if (rarity == 4) four++;
+                else three++;
+            }
+
+            Require(Math.Abs(top / (float)samples - .03f) < .003f,
+                "The cumulative gacha roll did not preserve the absolute 5-star rate.");
+            Require(Math.Abs(four / (float)samples - .15f) < .004f,
+                "The cumulative gacha roll did not preserve the absolute 4-star rate.");
+            Require(Math.Abs(three / (float)samples - .82f) < .005f,
+                "The cumulative gacha roll did not preserve the remaining 3-star rate.");
         }
 
         static void Require(bool condition, string message)

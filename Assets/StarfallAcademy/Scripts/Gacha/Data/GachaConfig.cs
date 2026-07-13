@@ -37,6 +37,8 @@ namespace StarfallAcademy.Lobby
         public float TopRarityRatePercent => topRarityRatePercent;
         public float FeaturedSharePercent => featuredSharePercent;
         public float FourStarRatePercent => fourStarRatePercent;
+        public float ThreeStarRatePercent =>
+            Mathf.Max(0f, 100f - topRarityRatePercent - fourStarRatePercent);
         public float EffectiveSelectedPickupRatePercent => topRarityRatePercent * featuredSharePercent / 100f;
         public int HardPity => hardPity;
         public int SoftPityStart => softPityStart;

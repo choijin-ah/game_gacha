@@ -48,13 +48,13 @@ namespace StarfallAcademy.Lobby
                 SkillMultiplier = Math.Max(0f, breakDamageMultiplier),
                 CanCrit = false
             });
-            target.EnterBroken();
             if (target.IsAlive)
             {
+                target.EnterBroken();
                 ApplyDelay(target, .3f);
                 result.AppliedEffect = ApplyElementEffect(attacker, target, element);
+                eventBus?.Publish(new BreakTriggeredEvent(attacker, target, element, result));
             }
-            eventBus?.Publish(new BreakTriggeredEvent(attacker, target, element, result));
             return result;
         }
 
@@ -140,7 +140,7 @@ namespace StarfallAcademy.Lobby
                     allies.Sort(CompareLowestHp);
                     return allies.Count == 0 ? Array.Empty<CombatUnit>() : new[] { allies[0] };
                 case BattleTargetType.RandomEnemy:
-                    return enemies.Count == 0 ? Array.Empty<CombatUnit>() : new[] { enemies[random.Next(enemies.Count)] };
+                    return RandomEnemy(actor, enemies);
                 case BattleTargetType.Self:
                     return new[] { actor };
                 default:
@@ -180,6 +180,31 @@ namespace StarfallAcademy.Lobby
             if (index + 1 < candidates.Count) result.Add(candidates[index + 1]);
             result.Sort((left, right) => left.Slot.CompareTo(right.Slot));
             return result;
+        }
+
+        IReadOnlyList<CombatUnit> RandomEnemy(CombatUnit actor, List<CombatUnit> candidates)
+        {
+            if (candidates.Count == 0) return Array.Empty<CombatUnit>();
+            if (actor.Team != BattleTeam.Enemy)
+                return new[] { candidates[random.Next(candidates.Count)] };
+
+            double totalWeight = 0d;
+            foreach (CombatUnit candidate in candidates)
+                totalWeight += Math.Max(0f, candidate.AggroWeight);
+            if (totalWeight <= 0d)
+                return new[] { candidates[random.Next(candidates.Count)] };
+
+            double roll = random.NextDouble() * totalWeight;
+            CombatUnit lastWeighted = null;
+            foreach (CombatUnit candidate in candidates)
+            {
+                double weight = Math.Max(0f, candidate.AggroWeight);
+                if (weight <= 0d) continue;
+                lastWeighted = candidate;
+                roll -= weight;
+                if (roll < 0d) return new[] { candidate };
+            }
+            return new[] { lastWeighted ?? candidates[candidates.Count - 1] };
         }
 
         static int CompareLowestHp(CombatUnit left, CombatUnit right)

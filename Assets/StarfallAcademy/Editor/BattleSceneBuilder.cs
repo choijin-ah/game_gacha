@@ -38,6 +38,7 @@ namespace StarfallAcademy.Lobby.Editor
     {
         internal static void CreateScene<T>(string path, string entryName) where T : Component
         {
+            if (!SceneBuilderSafety.CanRunManualBuild()) return;
             if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -56,11 +57,7 @@ namespace StarfallAcademy.Lobby.Editor
                 SceneBuildSettingsUtility.Update();
                 return;
             }
-            if (EditorApplication.isCompiling || EditorApplication.isPlayingOrWillChangePlaymode)
-            {
-                EditorApplication.delayCall += () => EnsureScene<T>(path, entryName);
-                return;
-            }
+            if (!SceneBuilderSafety.TryBegin(path, () => EnsureScene<T>(path, entryName))) return;
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             Scene previous = SceneManager.GetActiveScene();
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);

@@ -68,6 +68,9 @@ namespace StarfallAcademy.Lobby
                 probabilityLabel.text = "5★ 기본 " + config.TopRarityRatePercent.ToString("0.###") + "%  ·  선택 픽업 " +
                     config.FeaturedSharePercent.ToString("0.##") + "%  (절대 " +
                     config.EffectiveSelectedPickupRatePercent.ToString("0.###") + "%)";
+                probabilityLabel.text += "  ·  4★ "
+                    + config.FourStarRatePercent.ToString("0.###") + "%  ·  3★ "
+                    + config.ThreeStarRatePercent.ToString("0.###") + "%";
                 pityLabel.text = "천장까지 " + Mathf.Max(0, config.HardPity - service.PityCount) + "회" +
                     (service.FeaturedGuaranteed ? "  ·  다음 5★ 픽업 확정" : string.Empty);
             }

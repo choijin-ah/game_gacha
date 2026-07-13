@@ -23,7 +23,7 @@ namespace StarfallAcademy.Lobby.Editor
             "left_character,left_expression_key,left_expression_sprite,left_visible,left_flip,left_tint,left_offset_x,left_offset_y," +
             "center_character,center_expression_key,center_expression_sprite,center_visible,center_flip,center_tint,center_offset_x,center_offset_y," +
             "right_character,right_expression_key,right_expression_sprite,right_visible,right_flip,right_tint,right_offset_x,right_offset_y," +
-            "background,cg,bgm,sfx,transition,effects,shake_strength,effect_duration,text_speed,auto_duration," +
+            "background,cg,bgm,sfx,voice,transition,effects,shake_strength,effect_duration,text_speed,auto_duration," +
             "choice1_text,choice1_next_episode,choice1_next_line,choice1_condition," +
             "choice2_text,choice2_next_episode,choice2_next_line,choice2_condition," +
             "choice3_text,choice3_next_episode,choice3_next_line,choice3_condition," +
@@ -82,7 +82,8 @@ namespace StarfallAcademy.Lobby.Editor
                 EditorGUIUtility.systemCopyBuffer = TemplateHeader;
                 ShowNotification(new GUIContent("헤더를 클립보드에 복사했습니다."));
             }
-            if (GUILayout.Button("CSV 템플릿 저장…")) SaveTemplate();
+            if (GUILayout.Button("Excel 양식 다운로드…")) SaveExcelTemplate();
+            if (GUILayout.Button("CSV 양식 저장…")) SaveCsvTemplate();
             if (GUILayout.Button("열 스키마 안내 선택"))
             {
                 UnityEngine.Object schema = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(
@@ -140,6 +141,7 @@ namespace StarfallAcademy.Lobby.Editor
             EditorGUILayout.LabelField("episode_id · episode_title · category · line_id · text", EditorStyles.wordWrappedLabel);
             EditorGUILayout.LabelField("category: Main / Event / Character / Side (메인/이벤트/캐릭터/사이드도 인식)", EditorStyles.miniLabel);
             EditorGUILayout.LabelField("에셋 셀: Assets/... 경로, GUID, 또는 에셋 이름. 캐릭터는 CharacterData ID/표시 이름도 인식합니다.", EditorStyles.wordWrappedMiniLabel);
+            EditorGUILayout.LabelField("스토리 오디오: bgm / sfx / voice 열에 AudioClip을 지정합니다.", EditorStyles.wordWrappedMiniLabel);
             EditorGUILayout.LabelField("effects: Shake|FlashWhite|FadeIn처럼 | 또는 , 로 여러 효과를 지정합니다.", EditorStyles.wordWrappedMiniLabel);
             EditorGUILayout.Space(6f);
         }
@@ -178,31 +180,66 @@ namespace StarfallAcademy.Lobby.Editor
             }
         }
 
-        void SaveTemplate()
+        void SaveExcelTemplate()
+        {
+            string path = EditorUtility.SaveFilePanel("스토리 Excel 양식 저장", string.Empty,
+                "Starfall_Story_Template.xlsx", "xlsx");
+            if (string.IsNullOrWhiteSpace(path)) return;
+
+            try
+            {
+                string[] headers = TemplateHeader.Split(',');
+                StorySpreadsheetTemplateWriter.Write(path, headers, CreateTemplateRows(headers));
+                EditorUtility.RevealInFinder(path);
+                ShowNotification(new GUIContent("Excel 스토리 양식을 저장했습니다."));
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception);
+                EditorUtility.DisplayDialog("Excel 양식 저장 실패", exception.Message, "확인");
+            }
+        }
+
+        void SaveCsvTemplate()
         {
             string path = EditorUtility.SaveFilePanel("스토리 CSV 템플릿 저장", string.Empty, "Starfall_Story_Template.csv", "csv");
             if (string.IsNullOrWhiteSpace(path)) return;
             string[] headers = TemplateHeader.Split(',');
-            var values = new string[headers.Length];
-            SetTemplateValue(headers, values, "episode_id", "main_01");
-            SetTemplateValue(headers, values, "episode_title", "프롤로그");
-            SetTemplateValue(headers, values, "category", "Main");
-            SetTemplateValue(headers, values, "sort_order", "0");
-            SetTemplateValue(headers, values, "summary", "첫 번째 이야기");
-            SetTemplateValue(headers, values, "initially_unlocked", "true");
-            SetTemplateValue(headers, values, "line_id", "line_001");
-            SetTemplateValue(headers, values, "speaker_name", "아리아");
-            SetTemplateValue(headers, values, "speaker_position", "Center");
-            SetTemplateValue(headers, values, "text", "별이 내리는 밤이야.");
-            SetTemplateValue(headers, values, "transition", "CrossFade");
-            SetTemplateValue(headers, values, "effects", "FadeIn");
-            SetTemplateValue(headers, values, "shake_strength", "8");
-            SetTemplateValue(headers, values, "effect_duration", "0.35");
-            SetTemplateValue(headers, values, "text_speed", "0.035");
-            SetTemplateValue(headers, values, "auto_duration", "2");
-            string sample = string.Join(",", values.Select(CsvCell));
-            File.WriteAllText(path, TemplateHeader + Environment.NewLine + sample + Environment.NewLine, new UTF8Encoding(true));
+            IEnumerable<string> samples = CreateTemplateRows(headers)
+                .Select(values => string.Join(",", values.Select(CsvCell)));
+            File.WriteAllText(path, TemplateHeader + Environment.NewLine +
+                string.Join(Environment.NewLine, samples) + Environment.NewLine, new UTF8Encoding(true));
             EditorUtility.RevealInFinder(path);
+        }
+
+        static IReadOnlyList<string[]> CreateTemplateRows(IReadOnlyList<string> headers)
+        {
+            var first = new string[headers.Count];
+            SetTemplateValue(headers, first, "episode_id", "main_01");
+            SetTemplateValue(headers, first, "episode_title", "프롤로그");
+            SetTemplateValue(headers, first, "category", "Main");
+            SetTemplateValue(headers, first, "sort_order", "0");
+            SetTemplateValue(headers, first, "summary", "첫 번째 이야기");
+            SetTemplateValue(headers, first, "initially_unlocked", "true");
+            SetTemplateValue(headers, first, "line_id", "line_001");
+            SetTemplateValue(headers, first, "speaker_name", "아리아");
+            SetTemplateValue(headers, first, "speaker_position", "Center");
+            SetTemplateValue(headers, first, "text", "별이 내리는 밤이야.");
+            SetTemplateValue(headers, first, "transition", "CrossFade");
+            SetTemplateValue(headers, first, "effects", "FadeIn");
+            SetTemplateValue(headers, first, "shake_strength", "8");
+            SetTemplateValue(headers, first, "effect_duration", "0.35");
+            SetTemplateValue(headers, first, "text_speed", "0.035");
+            SetTemplateValue(headers, first, "auto_duration", "2");
+
+            var second = new string[headers.Count];
+            SetTemplateValue(headers, second, "episode_id", "main_01");
+            SetTemplateValue(headers, second, "line_id", "line_002");
+            SetTemplateValue(headers, second, "speaker_position", "Narrator");
+            SetTemplateValue(headers, second, "text", "그날, 우리의 이야기가 시작되었다.");
+            SetTemplateValue(headers, second, "transition", "None");
+
+            return new[] { first, second };
         }
 
         static void SetTemplateValue(IReadOnlyList<string> headers, string[] values, string header, string value)
@@ -230,6 +267,7 @@ namespace StarfallAcademy.Lobby.Editor
                 ImportResult result = StorySpreadsheetImporter.Import(database, tables, importMode);
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
+                StoryReferenceValidator.ValidateAll();
                 EditorUtility.DisplayDialog("스토리 가져오기 완료",
                     $"에피소드 {result.EpisodeCount}개, 대사 {result.LineCount}줄을 반영했습니다." +
                     (result.WarningCount > 0 ? $"\n확인할 경고: {result.WarningCount}개 (Console 참조)" : string.Empty), "확인");
@@ -395,6 +433,8 @@ namespace StarfallAcademy.Lobby.Editor
             if (Has(row, "cg")) line.Cg = StoryAssetResolver.Asset<Sprite>(Get(row, "cg"));
             if (Has(row, "bgm")) line.Bgm = StoryAssetResolver.Asset<AudioClip>(Get(row, "bgm"));
             if (Has(row, "sfx", "효과음")) line.Sfx = StoryAssetResolver.Asset<AudioClip>(Get(row, "sfx", "효과음"));
+            if (Has(row, "voice", "음성", "voice_clip"))
+                line.Voice = StoryAssetResolver.Asset<AudioClip>(Get(row, "voice", "음성", "voice_clip"));
             if (Has(row, "transition", "전환")) line.Transition = ParseTransition(Get(row, "transition", "전환"), line.Transition);
             if (Has(row, "effects", "화면_효과")) line.Effects = ParseEffects(Get(row, "effects", "화면_효과"));
             if (TryFloat(Get(row, "shake_strength", "흔들림_강도"), out float shake)) line.ShakeStrength = shake;
@@ -561,11 +601,27 @@ namespace StarfallAcademy.Lobby.Editor
     {
         static readonly Dictionary<string, UnityEngine.Object> Cache = new Dictionary<string, UnityEngine.Object>(StringComparer.OrdinalIgnoreCase);
 
+        static StoryAssetResolver()
+        {
+            EditorApplication.projectChanged += Clear;
+        }
+
+        [MenuItem("Starfall/Story/Clear Asset Resolver Cache")]
+        public static void Clear()
+        {
+            Cache.Clear();
+        }
+
         public static CharacterData Character(string value)
         {
             if (string.IsNullOrWhiteSpace(value)) return null;
             string key = "CharacterData|" + value.Trim();
-            if (Cache.TryGetValue(key, out UnityEngine.Object cached)) return cached as CharacterData;
+            if (Cache.TryGetValue(key, out UnityEngine.Object cached))
+            {
+                CharacterData cachedCharacter = cached as CharacterData;
+                if (cachedCharacter != null) return cachedCharacter;
+                Cache.Remove(key);
+            }
 
             CharacterData direct = Asset<CharacterData>(value);
             if (direct != null) { Cache[key] = direct; return direct; }
@@ -580,7 +636,6 @@ namespace StarfallAcademy.Lobby.Editor
                     return character;
                 }
             }
-            Cache[key] = null;
             return null;
         }
 
@@ -589,7 +644,12 @@ namespace StarfallAcademy.Lobby.Editor
             if (string.IsNullOrWhiteSpace(value)) return null;
             value = value.Trim();
             string key = typeof(T).FullName + "|" + value;
-            if (Cache.TryGetValue(key, out UnityEngine.Object cached)) return cached as T;
+            if (Cache.TryGetValue(key, out UnityEngine.Object cached))
+            {
+                T cachedAsset = cached as T;
+                if (cachedAsset != null) return cachedAsset;
+                Cache.Remove(key);
+            }
 
             string path = value;
             if (value.Length == 32 && value.All(Uri.IsHexDigit))
@@ -619,7 +679,7 @@ namespace StarfallAcademy.Lobby.Editor
                         StringComparison.OrdinalIgnoreCase)) { asset = main; break; }
                 }
             }
-            Cache[key] = asset;
+            if (asset != null) Cache[key] = asset;
             return asset;
         }
     }

@@ -37,7 +37,7 @@ namespace StarfallAcademy.Lobby
             BuildEnemies(stage);
             units.AddRange(players);
             units.AddRange(enemies);
-            int seed = deterministicSeed ?? StableSeed(stage.Id);
+            int seed = deterministicSeed ?? Guid.NewGuid().GetHashCode();
             Core = new BattleCombatCore(units, stage.InitialSkillPoints,
                 ResourceSystem.DefaultMaximumSkillPoints, seed);
             ApplyOpeningPassives();
@@ -178,7 +178,10 @@ namespace StarfallAcademy.Lobby
                     character.ResolveMaxEnergy());
                 var unit = new CombatUnit("player_" + character.Id + "_" + slot,
                     character.DisplayName, BattleTeam.Player, slot, stats, character,
-                    character.Element);
+                    character.Element)
+                {
+                    AggroWeight = character.AggroWeight
+                };
                 players.Add(unit);
             }
         }
@@ -204,6 +207,7 @@ namespace StarfallAcademy.Lobby
                 {
                     Archetype = isBoss ? EnemyArchetype.BossObserver : entry.Archetype,
                     IsBoss = isBoss,
+                    PhaseTwoEnabled = stageData.BossPhaseTwoEnabled,
                     PhaseTwoThreshold = stageData.BossPhaseTwoThreshold,
                     DelayResistance = entry.DelayResistance
                 };
@@ -360,10 +364,12 @@ namespace StarfallAcademy.Lobby
                 if (player.IsAlive && player.CharacterData != null
                     && player.CharacterData.Role == CharacterRole.Healer) { healer = player; break; }
             if (healer == null) return;
+            var processedTargets = new HashSet<CombatUnit>();
             foreach (DamageResult damage in resolution.DamageResults)
             {
                 CombatUnit target = damage.Target;
-                if (target == null || !target.IsAlive || target.Team != BattleTeam.Player
+                if (target == null || !processedTargets.Add(target) || !target.IsAlive
+                    || target.Team != BattleTeam.Player
                     || target.HpRatio > .25f) continue;
                 target.Heal(healer.MaxHp * .1f);
                 emergencyHealsUsed++;
@@ -381,8 +387,10 @@ namespace StarfallAcademy.Lobby
         void ApplyBossPhaseTwoIfNeeded()
         {
             if (!stage.BossPhaseTwoEnabled) return;
-            foreach (CombatUnit boss in enemies)
+            int phaseCandidateCount = enemies.Count;
+            for (int i = 0; i < phaseCandidateCount; i++)
             {
+                CombatUnit boss = enemies[i];
                 if (!boss.IsBoss || !boss.IsAlive || phaseTwoApplied.Contains(boss)
                     || boss.HpRatio > stage.BossPhaseTwoThreshold) continue;
                 float oldSpeed = boss.Stats.Speed;
@@ -479,15 +487,5 @@ namespace StarfallAcademy.Lobby
             };
         }
 
-        static int StableSeed(string value)
-        {
-            unchecked
-            {
-                uint hash = 2166136261;
-                foreach (char character in value ?? string.Empty)
-                    hash = (hash ^ character) * 16777619;
-                return (int)hash;
-            }
-        }
     }
 }

@@ -45,6 +45,7 @@ namespace StarfallAcademy.Lobby
         public static int GetLevel(CharacterData character, EquipmentSlot slot)
         {
             if (character == null || !IsValidSlot(slot)) return 0;
+            MetaPlayerPrefsTransaction.RecoverPending();
             return Mathf.Clamp(PlayerPrefs.GetInt(LevelKey(character, slot), 0),
                 0, MaxEquipmentLevel);
         }
@@ -102,11 +103,12 @@ namespace StarfallAcademy.Lobby
             }
 
             int equippedCount = 0;
+            var writes = new List<MetaIntWrite>(SlotOrder.Length);
             for (int i = 0; i < SlotOrder.Length; i++)
             {
                 EquipmentSlot slot = SlotOrder[i];
                 if (IsEquipped(character, slot)) continue;
-                PlayerPrefs.SetInt(LevelKey(character, slot), DefaultEquipmentLevel);
+                writes.Add(new MetaIntWrite(LevelKey(character, slot), DefaultEquipmentLevel));
                 equippedCount++;
             }
 
@@ -116,7 +118,11 @@ namespace StarfallAcademy.Lobby
                 return false;
             }
 
-            PlayerPrefs.Save();
+            if (!MetaPlayerPrefsTransaction.Commit(writes))
+            {
+                message = "Save failed. Please try again.";
+                return false;
+            }
             message = character.DisplayName + "  기본 장비 " + equippedCount + "개 장착";
             return true;
         }
@@ -156,14 +162,19 @@ namespace StarfallAcademy.Lobby
             }
 
             int cost = GetUpgradeCost(character, slot);
-            if (!PlayerWallet.TrySpendCredits(cost))
+            var writes = new List<MetaIntWrite>(2);
+            if (!PlayerWallet.TryStageCreditsSpend(cost, writes))
             {
                 message = "크레딧이 부족합니다";
                 return false;
             }
 
-            PlayerPrefs.SetInt(LevelKey(character, slot), level + 1);
-            PlayerPrefs.Save();
+            writes.Add(new MetaIntWrite(LevelKey(character, slot), level + 1));
+            if (!MetaPlayerPrefsTransaction.Commit(writes))
+            {
+                message = "Save failed. Please try again.";
+                return false;
+            }
             MissionService.RecordEnhancement();
             message = slotName + "  LV. " + (level + 1);
             return true;

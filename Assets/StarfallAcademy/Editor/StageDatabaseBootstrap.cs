@@ -21,11 +21,10 @@ namespace StarfallAcademy.Lobby.Editor
         public static void Open()
         {
             StageDatabase database = EnsureDefaults();
-            Selection.activeObject = database;
-            EditorGUIUtility.PingObject(database);
+            StageDatabaseWindow.Open(database);
         }
 
-        static StageDatabase EnsureDefaults()
+        internal static StageDatabase EnsureDefaults()
         {
             StageDatabase database = AssetDatabase.LoadAssetAtPath<StageDatabase>(DatabasePath);
             if (database == null)
@@ -94,6 +93,241 @@ namespace StarfallAcademy.Lobby.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             return database;
+        }
+    }
+
+    public sealed class StageDatabaseWindow : EditorWindow
+    {
+        StageDatabase database;
+        StageData selectedStage;
+        UnityEditor.Editor stageInspector;
+        Vector2 listScroll;
+        Vector2 inspectorScroll;
+
+        public static void Open(StageDatabase target)
+        {
+            var window = GetWindow<StageDatabaseWindow>("Stage Database");
+            window.minSize = new Vector2(920, 620);
+            window.database = target != null ? target : StageDatabaseBootstrap.EnsureDefaults();
+            window.Show();
+        }
+
+        void OnEnable()
+        {
+            if (database == null) database = StageDatabaseBootstrap.EnsureDefaults();
+        }
+
+        void OnDisable()
+        {
+            if (stageInspector != null) DestroyImmediate(stageInspector);
+        }
+
+        void OnGUI()
+        {
+            EditorGUILayout.Space(8);
+            EditorGUILayout.LabelField("STARFALL STAGE DATABASE", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("스테이지 전투 데이터와 스테이지별 BGM을 수정합니다.", EditorStyles.miniLabel);
+            EditorGUILayout.Space(6);
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            if (GUILayout.Button("저장", EditorStyles.toolbarButton, GUILayout.Width(60)))
+                AssetDatabase.SaveAssets();
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("데이터베이스 찾기", EditorStyles.toolbarButton, GUILayout.Width(110)))
+            {
+                Selection.activeObject = database;
+                EditorGUIUtility.PingObject(database);
+            }
+            EditorGUILayout.EndHorizontal();
+
+            if (database == null)
+            {
+                EditorGUILayout.HelpBox("스테이지 데이터베이스를 불러오지 못했습니다.", MessageType.Error);
+                return;
+            }
+
+            EditorGUILayout.Space(8);
+            EditorGUILayout.BeginHorizontal();
+            DrawStageList();
+            DrawStageInspector();
+            EditorGUILayout.EndHorizontal();
+        }
+
+        void DrawStageList()
+        {
+            EditorGUILayout.BeginVertical(GUILayout.Width(330));
+            EditorGUILayout.LabelField("등록 스테이지  " + database.Stages.Count, EditorStyles.boldLabel);
+            listScroll = EditorGUILayout.BeginScrollView(listScroll, GUI.skin.box);
+            for (int i = 0; i < database.Stages.Count; i++)
+            {
+                StageData stage = database.Stages[i];
+                if (stage == null) continue;
+                Color previous = GUI.backgroundColor;
+                if (stage == selectedStage) GUI.backgroundColor = new Color(.45f, .85f, 1f);
+                EditorGUILayout.BeginVertical(GUI.skin.box);
+                GUI.backgroundColor = previous;
+                EditorGUILayout.LabelField((i + 1).ToString("00") + "  " + stage.DisplayName,
+                    EditorStyles.boldLabel);
+                EditorGUILayout.LabelField(stage.Chapter + "  ·  " + stage.Category,
+                    EditorStyles.miniLabel);
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField(stage.BattleBgm != null
+                    ? "BGM  " + stage.BattleBgm.name : "BGM  기본 전투곡", EditorStyles.miniLabel);
+                if (GUILayout.Button("편집", GUILayout.Width(54))) SelectStage(stage);
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.EndVertical();
+            }
+            EditorGUILayout.EndScrollView();
+            EditorGUILayout.EndVertical();
+        }
+
+        void DrawStageInspector()
+        {
+            EditorGUILayout.BeginVertical(GUILayout.ExpandWidth(true));
+            EditorGUILayout.LabelField("스테이지 상세", EditorStyles.boldLabel);
+            inspectorScroll = EditorGUILayout.BeginScrollView(inspectorScroll, GUI.skin.box);
+            if (selectedStage == null)
+            {
+                EditorGUILayout.Space(30);
+                EditorGUILayout.HelpBox("왼쪽에서 스테이지를 선택하세요.\nAudio의 Battle Bgm에서 전투곡을 지정할 수 있습니다.",
+                    MessageType.Info);
+            }
+            else
+            {
+                if (stageInspector == null || stageInspector.target != selectedStage)
+                {
+                    if (stageInspector != null) DestroyImmediate(stageInspector);
+                    stageInspector = UnityEditor.Editor.CreateEditor(selectedStage);
+                }
+                stageInspector.OnInspectorGUI();
+                EditorGUILayout.Space(8);
+                EditorGUILayout.HelpBox("Audio > Battle Bgm을 비우면 씬 BGM 설정의 기본 전투곡을 사용합니다.",
+                    MessageType.Info);
+                if (GUILayout.Button("Project 창에서 찾기", GUILayout.Height(28)))
+                {
+                    Selection.activeObject = selectedStage;
+                    EditorGUIUtility.PingObject(selectedStage);
+                }
+            }
+            EditorGUILayout.EndScrollView();
+            EditorGUILayout.EndVertical();
+        }
+
+        void SelectStage(StageData stage)
+        {
+            selectedStage = stage;
+            if (stageInspector != null)
+            {
+                DestroyImmediate(stageInspector);
+                stageInspector = null;
+            }
+            Repaint();
+        }
+    }
+
+    [InitializeOnLoad]
+    static class GameAudioSettingsBootstrap
+    {
+        internal const string SettingsPath = "Assets/StarfallAcademy/Resources/Data/GameAudioSettings.asset";
+
+        static GameAudioSettingsBootstrap()
+        {
+            EditorApplication.delayCall += () => EnsureSettings();
+        }
+
+        internal static GameAudioSettings EnsureSettings()
+        {
+            GameAudioSettings settings = AssetDatabase.LoadAssetAtPath<GameAudioSettings>(SettingsPath);
+            if (settings != null) return settings;
+            Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath));
+            settings = ScriptableObject.CreateInstance<GameAudioSettings>();
+            AssetDatabase.CreateAsset(settings, SettingsPath);
+            AssetDatabase.SaveAssets();
+            return settings;
+        }
+    }
+
+    public sealed class GameAudioSettingsWindow : EditorWindow
+    {
+        GameAudioSettings settings;
+        SerializedObject settingsObject;
+        Vector2 scroll;
+
+        [MenuItem("Starfall/Audio/Scene BGM Settings")]
+        public static void Open()
+        {
+            var window = GetWindow<GameAudioSettingsWindow>("Scene BGM Settings");
+            window.minSize = new Vector2(620, 480);
+            window.Show();
+        }
+
+        void OnEnable() => Reload();
+
+        void Reload()
+        {
+            settings = GameAudioSettingsBootstrap.EnsureSettings();
+            settingsObject = settings != null ? new SerializedObject(settings) : null;
+        }
+
+        void OnGUI()
+        {
+            EditorGUILayout.Space(8);
+            EditorGUILayout.LabelField("STARFALL SCENE BGM SETTINGS", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("일반 씬 BGM과 전투 기본곡을 설정합니다. 스테이지·캐릭터 오디오는 각 데이터베이스에서 수정합니다.",
+                EditorStyles.wordWrappedMiniLabel);
+            EditorGUILayout.Space(6);
+
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            if (GUILayout.Button("새로고침", EditorStyles.toolbarButton, GUILayout.Width(70))) Reload();
+            if (GUILayout.Button("모두 저장", EditorStyles.toolbarButton, GUILayout.Width(70)))
+            {
+                AssetDatabase.SaveAssets();
+                if (Application.isPlaying) GameAudioDirector.RefreshForCurrentScene();
+            }
+            GUILayout.FlexibleSpace();
+            using (new EditorGUI.DisabledScope(settings == null))
+            {
+                if (GUILayout.Button("설정 에셋 찾기", EditorStyles.toolbarButton, GUILayout.Width(100)))
+                {
+                    Selection.activeObject = settings;
+                    EditorGUIUtility.PingObject(settings);
+                }
+            }
+            EditorGUILayout.EndHorizontal();
+
+            scroll = EditorGUILayout.BeginScrollView(scroll);
+            DrawSceneBgm();
+            EditorGUILayout.EndScrollView();
+        }
+
+        void DrawSceneBgm()
+        {
+            EditorGUILayout.LabelField("씬별 BGM", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox("씬이 바뀌면 지정된 곡으로 자동 크로스페이드됩니다. 비어 있는 씬에서는 BGM을 정지합니다.",
+                MessageType.Info);
+            if (settingsObject == null) return;
+
+            settingsObject.Update();
+            EditorGUILayout.BeginVertical(GUI.skin.box);
+            SceneClip("lobbyBgm", "로비");
+            SceneClip("formationBgm", "편성");
+            SceneClip("gachaBgm", "모집");
+            SceneClip("shopBgm", "상점");
+            SceneClip("characterArchiveBgm", "캐릭터 도감");
+            SceneClip("storyArchiveBgm", "스토리 기록실");
+            SceneClip("stageSelectBgm", "스테이지 선택");
+            SceneClip("defaultBattleBgm", "기본 전투");
+            EditorGUILayout.Space(4);
+            EditorGUILayout.PropertyField(settingsObject.FindProperty("musicVolume"), new GUIContent("BGM 기본 볼륨"));
+            EditorGUILayout.PropertyField(settingsObject.FindProperty("crossFadeSeconds"), new GUIContent("크로스페이드 시간"));
+            EditorGUILayout.EndVertical();
+            if (settingsObject.ApplyModifiedProperties() && Application.isPlaying)
+                GameAudioDirector.RefreshForCurrentScene();
+        }
+
+        void SceneClip(string propertyName, string label)
+        {
+            SerializedProperty property = settingsObject.FindProperty(propertyName);
+            if (property != null) EditorGUILayout.PropertyField(property, new GUIContent(label + " BGM"));
         }
     }
 }

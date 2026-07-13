@@ -177,7 +177,8 @@ namespace StarfallAcademy.Lobby.Editor
                 EditorGUILayout.Space(8);
                 EditorGUILayout.HelpBox(
                     "Skill 영역에서 캐릭터별 스킬 이름, Skill Icon, 최대 레벨과 강화 비용을 수정할 수 있습니다. " +
-                    "Skill Icon을 비우면 Default Skill Icon 스타일이 자동 적용됩니다.",
+                    "Battle MVP Actions에서 일반 공격·스킬 수치를, Battle Audio에서 행동 효과음과 음성을 설정합니다. " +
+                    "음성 배열에 여러 클립을 넣으면 전투 중 무작위로 재생됩니다.",
                     MessageType.Info);
                 EditorGUILayout.Space(8);
                 if (GUILayout.Button("Project 창에서 찾기", GUILayout.Height(28)))

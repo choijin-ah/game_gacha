@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 
 namespace StarfallAcademy.Lobby
@@ -10,14 +11,16 @@ namespace StarfallAcademy.Lobby
     /// </summary>
     public static class StoryProgressService
     {
-        const string Prefix = "Starfall.Story.v1.";
+        const string LegacyPrefix = "Starfall.Story.v1.";
+        const string Prefix = "Starfall.Story.v2.";
+        static bool dirty;
 
         public static bool IsUnlocked(StoryDatabase database, StoryEpisode episode)
         {
             if (episode == null) return false;
-            if (PlayerPrefs.GetInt(Key("unlocked", episode.Id), 0) == 1) return true;
+            if (GetInt("unlocked", episode.Id, 0) == 1) return true;
             if (!string.IsNullOrWhiteSpace(episode.UnlockKey))
-                return PlayerPrefs.GetInt(Prefix + "condition." + Safe(episode.UnlockKey), 0) == 1;
+                return GetInt("condition", episode.UnlockKey, 0) == 1;
             if (episode.IsInitiallyUnlocked) return true;
             if (!string.IsNullOrWhiteSpace(episode.PrerequisiteEpisodeId))
             {
@@ -34,63 +37,83 @@ namespace StarfallAcademy.Lobby
 
         public static bool IsCompleted(StoryEpisode episode)
         {
-            return episode != null && PlayerPrefs.GetInt(Key("completed", episode.Id), 0) == 1;
+            return episode != null && GetInt("completed", episode.Id, 0) == 1;
         }
 
         public static int GetLastLine(StoryEpisode episode)
         {
             if (episode == null || episode.Lines == null || episode.Lines.Count == 0) return 0;
-            return Mathf.Clamp(PlayerPrefs.GetInt(Key("line", episode.Id), 0), 0, episode.Lines.Count - 1);
+            int legacyLine = GetLegacyInt("line", episode.Id, 0);
+            return Mathf.Clamp(GetInt("cursor", episode.Id, legacyLine, "line"), 0, episode.Lines.Count - 1);
         }
 
         public static float GetReadProgress(StoryEpisode episode)
         {
             if (episode == null || episode.Lines == null || episode.Lines.Count == 0) return 0f;
             if (IsCompleted(episode)) return 1f;
-            if (!PlayerPrefs.HasKey(Key("line", episode.Id))) return 0f;
-            return Mathf.Clamp01((GetLastLine(episode) + 1f) / episode.Lines.Count);
+            bool hasLegacyProgress = PlayerPrefs.HasKey(LegacyKey("line", episode.Id));
+            bool hasCurrentProgress = PlayerPrefs.HasKey(Key("furthest", episode.Id));
+            if (!hasLegacyProgress && !hasCurrentProgress) return 0f;
+            int legacyLine = GetLegacyInt("line", episode.Id, 0);
+            int furthest = Mathf.Clamp(GetInt("furthest", episode.Id, legacyLine, "line"),
+                0, episode.Lines.Count - 1);
+            return Mathf.Clamp01((furthest + 1f) / episode.Lines.Count);
         }
 
         public static void SaveLine(StoryEpisode episode, int lineIndex)
         {
             if (episode == null) return;
-            PlayerPrefs.SetInt(Key("line", episode.Id), Mathf.Max(0, lineIndex));
-            PlayerPrefs.SetInt(Key("unlocked", episode.Id), 1);
-            PlayerPrefs.Save();
+            int cursor = Mathf.Max(0, lineIndex);
+            int previousFurthest = GetInt("furthest", episode.Id,
+                GetLegacyInt("line", episode.Id, 0), "line");
+            SetInt("cursor", episode.Id, cursor, "line");
+            SetInt("furthest", episode.Id, Mathf.Max(previousFurthest, cursor));
+            SetInt("unlocked", episode.Id, 1);
         }
 
         public static void MarkCompleted(StoryDatabase database, StoryEpisode episode)
         {
             if (episode == null) return;
-            PlayerPrefs.SetInt(Key("completed", episode.Id), 1);
-            PlayerPrefs.SetInt(Key("unlocked", episode.Id), 1);
+            SetInt("completed", episode.Id, 1);
+            SetInt("unlocked", episode.Id, 1);
 
             StoryEpisode next = NextInCategory(database, episode);
             // Explicit gates must never be bypassed by simple sequential completion.
             if (next != null && string.IsNullOrWhiteSpace(next.UnlockKey)
                 && string.IsNullOrWhiteSpace(next.PrerequisiteEpisodeId))
-                PlayerPrefs.SetInt(Key("unlocked", next.Id), 1);
-            PlayerPrefs.Save();
+                SetInt("unlocked", next.Id, 1);
+            Flush();
         }
 
         public static void SetUnlocked(StoryEpisode episode, bool unlocked = true)
         {
             if (episode == null) return;
-            PlayerPrefs.SetInt(Key("unlocked", episode.Id), unlocked ? 1 : 0);
-            PlayerPrefs.Save();
+            SetInt("unlocked", episode.Id, unlocked ? 1 : 0);
+            Flush();
         }
 
         public static void SetCondition(string conditionKey, bool value = true)
         {
             if (string.IsNullOrWhiteSpace(conditionKey)) return;
-            PlayerPrefs.SetInt(Prefix + "condition." + Safe(conditionKey), value ? 1 : 0);
-            PlayerPrefs.Save();
+            SetInt("condition", conditionKey, value ? 1 : 0);
+            Flush();
         }
 
         public static bool IsChoiceAvailable(StoryChoice choice)
         {
             if (choice == null || string.IsNullOrWhiteSpace(choice.ConditionKey)) return true;
-            return PlayerPrefs.GetInt(Prefix + "condition." + Safe(choice.ConditionKey), 0) == 1;
+            return GetInt("condition", choice.ConditionKey, 0) == 1;
+        }
+
+        /// <summary>
+        /// Persists pending story progress. Line changes intentionally stay in memory until a
+        /// checkpoint, pause, completion, or close so skip mode cannot synchronously write every frame.
+        /// </summary>
+        public static void Flush()
+        {
+            if (!dirty) return;
+            PlayerPrefs.Save();
+            dirty = false;
         }
 
         static StoryEpisode FirstInCategory(StoryDatabase database, StoryCategory category)
@@ -124,8 +147,60 @@ namespace StarfallAcademy.Lobby
 
         static string Safe(string value)
         {
+            string normalized = string.IsNullOrWhiteSpace(value) ? "untitled" : value.Trim();
+            return Convert.ToBase64String(Encoding.UTF8.GetBytes(normalized))
+                .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        }
+
+        static string LegacyKey(string type, string value)
+        {
+            return LegacyPrefix + type + "." + LegacySafe(value);
+        }
+
+        static string LegacySafe(string value)
+        {
             if (string.IsNullOrWhiteSpace(value)) return "untitled";
             return value.Trim().Replace(' ', '_').Replace('/', '_').Replace('\\', '_');
+        }
+
+        static int GetInt(string type, string value, int defaultValue, string legacyType = null)
+        {
+            string key = Key(type, value);
+            if (PlayerPrefs.HasKey(key)) return PlayerPrefs.GetInt(key, defaultValue);
+
+            string oldKey = LegacyKey(legacyType ?? type, value);
+            if (!PlayerPrefs.HasKey(oldKey)) return defaultValue;
+            int migrated = PlayerPrefs.GetInt(oldKey, defaultValue);
+            PlayerPrefs.SetInt(key, migrated);
+            dirty = true;
+            return migrated;
+        }
+
+        static int GetLegacyInt(string type, string value, int defaultValue)
+        {
+            return PlayerPrefs.GetInt(LegacyKey(type, value), defaultValue);
+        }
+
+        static void SetInt(string type, string value, int newValue, string legacyType = null)
+        {
+            string key = Key(type, value);
+            if (!PlayerPrefs.HasKey(key) || PlayerPrefs.GetInt(key) != newValue)
+            {
+                PlayerPrefs.SetInt(key, newValue);
+                dirty = true;
+            }
+
+            if (legacyType != null) SetLegacyInt(legacyType, value, newValue);
+            else if (type == "completed" || type == "unlocked" || type == "condition")
+                SetLegacyInt(type, value, newValue);
+        }
+
+        static void SetLegacyInt(string type, string value, int newValue)
+        {
+            string key = LegacyKey(type, value);
+            if (PlayerPrefs.HasKey(key) && PlayerPrefs.GetInt(key) == newValue) return;
+            PlayerPrefs.SetInt(key, newValue);
+            dirty = true;
         }
     }
 }

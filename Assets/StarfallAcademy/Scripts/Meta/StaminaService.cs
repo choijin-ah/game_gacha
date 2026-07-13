@@ -66,7 +66,8 @@ namespace StarfallAcademy.Lobby
                 if (amount == 0) return true;
 
                 DateTime now = NormalizeUtc(clock.UtcNow);
-                if (snapshot.IsFull) WriteLastRecoveryUtc(now);
+                if (snapshot.IsFull)
+                    WriteLastRecoveryUtc(MaxUtc(now, ReadLastRecoveryUtc(now)));
                 storage.SetInt(CurrentKey, snapshot.Current - amount);
                 storage.Save();
                 return true;
@@ -92,7 +93,11 @@ namespace StarfallAcademy.Lobby
 
                 int next = snapshot.Current + added;
                 storage.SetInt(CurrentKey, next);
-                if (next >= snapshot.Maximum) WriteLastRecoveryUtc(NormalizeUtc(clock.UtcNow));
+                if (next >= snapshot.Maximum)
+                {
+                    DateTime now = NormalizeUtc(clock.UtcNow);
+                    WriteLastRecoveryUtc(MaxUtc(now, ReadLastRecoveryUtc(now)));
+                }
                 storage.Save();
                 return added;
             }
@@ -117,9 +122,42 @@ namespace StarfallAcademy.Lobby
                 if (purchasable <= 0 || premiumCurrency < premiumCost) return false;
 
                 int next = snapshot.Current + purchasable;
+                if (storage is PlayerPrefsMetaStorage)
+                {
+                    var writes = new MetaIntWrite[]
+                    {
+                        new MetaIntWrite(PremiumCurrencyKey, premiumCurrency - premiumCost),
+                        new MetaIntWrite(CurrentKey, next)
+                    };
+                    if (!MetaPlayerPrefsTransaction.Commit(writes)) return false;
+
+                    // The paid value pair is already durable. The recovery anchor is
+                    // bookkeeping only and can safely be repaired on the next spend.
+                    if (next >= snapshot.Maximum)
+                    {
+                        try
+                        {
+                            DateTime now = NormalizeUtc(clock.UtcNow);
+                            WriteLastRecoveryUtc(MaxUtc(now, ReadLastRecoveryUtc(now)));
+                            storage.Save();
+                        }
+                        catch (Exception exception)
+                        {
+                            UnityEngine.Debug.LogWarning("[Starfall Meta] Stamina purchase committed, "
+                                + "but its recovery anchor will be repaired later: " + exception.Message);
+                        }
+                    }
+                    added = purchasable;
+                    return true;
+                }
+
                 storage.SetInt(PremiumCurrencyKey, premiumCurrency - premiumCost);
                 storage.SetInt(CurrentKey, next);
-                if (next >= snapshot.Maximum) WriteLastRecoveryUtc(NormalizeUtc(clock.UtcNow));
+                if (next >= snapshot.Maximum)
+                {
+                    DateTime now = NormalizeUtc(clock.UtcNow);
+                    WriteLastRecoveryUtc(MaxUtc(now, ReadLastRecoveryUtc(now)));
+                }
                 storage.Save();
                 added = purchasable;
                 return true;
@@ -161,8 +199,8 @@ namespace StarfallAcademy.Lobby
                 // 이전 최대치에서 가득 찬 시간은 새 최대치의 회복분으로 소급하지 않습니다.
                 if (current >= knownMaximum)
                 {
-                    lastRecoveryUtc = now;
-                    WriteLastRecoveryUtc(now);
+                    lastRecoveryUtc = MaxUtc(lastRecoveryUtc, now);
+                    WriteLastRecoveryUtc(lastRecoveryUtc);
                 }
                 storage.SetInt(KnownMaximumKey, maximum);
                 changed = true;
@@ -170,13 +208,6 @@ namespace StarfallAcademy.Lobby
             else if (!storage.HasKey(KnownMaximumKey))
             {
                 storage.SetInt(KnownMaximumKey, maximum);
-                changed = true;
-            }
-
-            if (lastRecoveryUtc > now)
-            {
-                lastRecoveryUtc = now;
-                WriteLastRecoveryUtc(now);
                 changed = true;
             }
 
@@ -200,10 +231,14 @@ namespace StarfallAcademy.Lobby
             }
 
             if (changed) storage.Save();
-            TimeSpan untilNext = current >= maximum
-                ? TimeSpan.Zero
-                : RecoveryInterval - TimeSpan.FromTicks(
-                    Math.Max(0L, (now - lastRecoveryUtc).Ticks) % RecoveryInterval.Ticks);
+            TimeSpan untilNext;
+            if (current >= maximum)
+                untilNext = TimeSpan.Zero;
+            else if (lastRecoveryUtc > now)
+                untilNext = (lastRecoveryUtc - now) + RecoveryInterval;
+            else
+                untilNext = RecoveryInterval - TimeSpan.FromTicks(
+                    (now - lastRecoveryUtc).Ticks % RecoveryInterval.Ticks);
             return new StaminaSnapshot(current, maximum, untilNext);
         }
 
@@ -228,6 +263,9 @@ namespace StarfallAcademy.Lobby
             if (value.Kind == DateTimeKind.Local) return value.ToUniversalTime();
             return DateTime.SpecifyKind(value, DateTimeKind.Utc);
         }
+
+        static DateTime MaxUtc(DateTime first, DateTime second) =>
+            first >= second ? first : second;
 
         static int Clamp(int value, int minimum, int maximum)
         {

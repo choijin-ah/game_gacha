@@ -193,17 +193,7 @@ namespace StarfallAcademy.Lobby
                         DefenseIgnore = request.DefenseIgnore,
                         CanCrit = request.CanCrit
                     });
-                    resolution.MutableDamageResults.Add(damage);
-                    eventBus?.Publish(new DamageDealtEvent(damage));
-                    if (damage.Application != null && damage.Application.HpDamage > 0
-                        && target.Team == BattleTeam.Player)
-                        target.GainEnergy(5f + random.Next(0, 6));
-                    if (!target.IsAlive && !resolution.MutableDefeatedUnits.Contains(target))
-                    {
-                        resolution.MutableDefeatedUnits.Add(target);
-                        if (actor.Team == BattleTeam.Player) actor.GainEnergy(10f);
-                        eventBus?.Publish(new UnitDefeatedEvent(target));
-                    }
+                    RecordDamage(resolution, actor, damage);
                 }
 
                 if (target.IsAlive && (request.HealingAttackMultiplier > 0f
@@ -230,6 +220,8 @@ namespace StarfallAcademy.Lobby
                     BreakResult breakResult = breakSystem.ApplyBreakDamage(actor, target,
                         request.Element == BattleElement.Auto ? actor.Element : request.Element, breakValue);
                     resolution.MutableBreakResults.Add(breakResult);
+                    if (breakResult.BreakDamage != null)
+                        RecordDamage(resolution, actor, breakResult.BreakDamage, false);
                 }
 
                 if (target.IsAlive)
@@ -241,6 +233,9 @@ namespace StarfallAcademy.Lobby
                         if (random.NextDouble() > chance) continue;
                         StatusApplyResult status = target.ApplyStatus(template);
                         resolution.MutableStatusResults.Add(status);
+                        if (status.Applied && request.ConsumesRegularTurn
+                            && ReferenceEquals(target, actor))
+                            status.Effect.PreserveThroughCurrentOwnerAction();
                         if (status.Applied) eventBus?.Publish(new StatusAppliedEvent(target, status));
                     }
                 }
@@ -257,6 +252,22 @@ namespace StarfallAcademy.Lobby
             eventBus?.Publish(new ResourcesChangedEvent(resources.SkillPoints, actor));
             eventBus?.Publish(new ActionResolvedEvent(resolution));
             return resolution;
+        }
+
+        void RecordDamage(ActionResolution resolution, CombatUnit actor, DamageResult damage,
+            bool grantHitEnergy = true)
+        {
+            if (damage == null) return;
+            resolution.MutableDamageResults.Add(damage);
+            eventBus?.Publish(new DamageDealtEvent(damage));
+            CombatUnit target = damage.Target;
+            if (grantHitEnergy && damage.Application != null && damage.Application.HpDamage > 0
+                && target != null && target.Team == BattleTeam.Player)
+                target.GainEnergy(5f + random.Next(0, 6));
+            if (target == null || target.IsAlive || resolution.MutableDefeatedUnits.Contains(target)) return;
+            resolution.MutableDefeatedUnits.Add(target);
+            if (actor != null && actor.Team == BattleTeam.Player) actor.GainEnergy(10f);
+            eventBus?.Publish(new UnitDefeatedEvent(target));
         }
 
         bool Validate(ActionRequest request, ActionResolution resolution)
@@ -326,12 +337,16 @@ namespace StarfallAcademy.Lobby
         public void Clear(bool refundReservedEnergy = true)
         {
             while (queue.Count > 0)
-            {
-                ActionRequest request = queue.Dequeue();
-                if (refundReservedEnergy && request.ResourcesReserved && request.Actor != null)
-                    request.Actor.GainEnergy(request.EnergyCost);
-                request.ResourcesReserved = false;
-            }
+                ReleaseReservation(queue.Dequeue(), refundReservedEnergy);
+        }
+
+        internal bool ReleaseReservation(ActionRequest request, bool refundReservedEnergy = true)
+        {
+            if (request == null || !request.ResourcesReserved) return false;
+            if (refundReservedEnergy && request.Actor != null)
+                request.Actor.GainEnergy(request.EnergyCost);
+            request.ResourcesReserved = false;
+            return true;
         }
 
         bool ContainsActor(CombatUnit actor)

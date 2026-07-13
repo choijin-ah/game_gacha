@@ -256,6 +256,7 @@ namespace StarfallAcademy.Lobby.Editor
             Property(line, "cg", "CG");
             Property(line, "bgm", "BGM");
             Property(line, "sfx", "효과음");
+            Property(line, "voice", "음성");
             EditorGUILayout.EndVertical();
 
             EditorGUILayout.LabelField("연출 · 재생", EditorStyles.boldLabel);

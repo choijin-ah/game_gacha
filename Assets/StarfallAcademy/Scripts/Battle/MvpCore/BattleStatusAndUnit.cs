@@ -6,6 +6,7 @@ namespace StarfallAcademy.Lobby
     public sealed class StatusEffectInstance
     {
         readonly List<StatModifier> customModifiers;
+        bool preserveThroughCurrentOwnerAction;
 
         public string EffectId { get; }
         public StatusEffectType Type { get; }
@@ -125,7 +126,17 @@ namespace StarfallAcademy.Lobby
 
         internal void ConsumeOwnerAction()
         {
+            if (preserveThroughCurrentOwnerAction)
+            {
+                preserveThroughCurrentOwnerAction = false;
+                return;
+            }
             if (RemainingOwnerActions > 0) RemainingOwnerActions--;
+        }
+
+        internal void PreserveThroughCurrentOwnerAction()
+        {
+            preserveThroughCurrentOwnerAction = true;
         }
 
         static int MergeDuration(int current, int incoming)
@@ -161,6 +172,7 @@ namespace StarfallAcademy.Lobby
     {
         readonly List<StatusEffectInstance> statuses = new List<StatusEffectInstance>();
         readonly HashSet<BattleElement> weaknesses = new HashSet<BattleElement>();
+        float aggroWeight = 1f;
 
         public string Id { get; }
         public string DisplayName { get; }
@@ -182,8 +194,14 @@ namespace StarfallAcademy.Lobby
         public bool IsBroken { get; private set; }
         public bool BreakRecoveryPending { get; private set; }
         public bool IsBoss { get; set; }
+        public bool PhaseTwoEnabled { get; set; } = true;
         public float PhaseTwoThreshold { get; set; } = .5f;
         public float DelayResistance { get; set; }
+        public float AggroWeight
+        {
+            get => aggroWeight;
+            set => aggroWeight = Math.Max(0f, value);
+        }
         public bool Warning { get; private set; }
         public string WarningText { get; private set; }
         public int Phase { get; private set; } = 1;
@@ -240,7 +258,8 @@ namespace StarfallAcademy.Lobby
             }
             int hpDamage = Math.Min(BattleMath.RoundDamage(CurrentHp), requested - absorbed);
             CurrentHp = Math.Max(0f, CurrentHp - hpDamage);
-            if (IsBoss && Phase == 1 && HpRatio <= BattleMath.Clamp(PhaseTwoThreshold, .1f, .9f))
+            if (IsBoss && PhaseTwoEnabled && Phase == 1
+                && HpRatio <= BattleMath.Clamp(PhaseTwoThreshold, .1f, .9f))
                 Phase = 2;
             return new DamageApplication
             {
@@ -307,7 +326,11 @@ namespace StarfallAcademy.Lobby
             if (merged && existing.Type == StatusEffectType.Shield)
             {
                 float newCapacity = Math.Max(0f, existing.TotalFlatValue > 0f ? existing.TotalFlatValue : existing.TotalMagnitude);
-                float added = Math.Max(0f, newCapacity - oldShieldCapacity);
+                bool refreshesCapacity = existing.StackBehavior == StatusStackBehavior.RefreshDuration
+                    || existing.StackBehavior == StatusStackBehavior.IndependentBySource;
+                float added = refreshesCapacity
+                    ? Math.Max(0f, newCapacity - existing.RuntimeValue)
+                    : Math.Max(0f, newCapacity - oldShieldCapacity);
                 existing.RuntimeValue += added;
                 AddShield(added);
             }

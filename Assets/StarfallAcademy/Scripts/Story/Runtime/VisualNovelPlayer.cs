@@ -39,11 +39,14 @@ namespace StarfallAcademy.Lobby
         Text logText;
         AudioSource bgmSource;
         AudioSource sfxSource;
+        AudioSource voiceSource;
 
         readonly List<string> logEntries = new List<string>();
         Coroutine typingRoutine;
         Coroutine transitionRoutine;
         int lineIndex;
+        const float ProgressCheckpointSeconds = 10f;
+        float nextProgressCheckpoint;
         bool isTyping;
         bool autoMode;
         bool skipMode;
@@ -59,6 +62,7 @@ namespace StarfallAcademy.Lobby
         public void Initialize(StoryDatabase source, StoryEpisode selectedEpisode, LobbyUiFactory factory,
             Action<StoryEpisode> closed)
         {
+            GameAudioDirector.SetSceneMusicSuppressed(true);
             database = source;
             ui = factory ?? new LobbyUiFactory(new LobbyTheme());
             onClosed = closed;
@@ -157,6 +161,10 @@ namespace StarfallAcademy.Lobby
             sfxSource.loop = false;
             sfxSource.playOnAwake = false;
             sfxSource.volume = GameSettings.SfxVolume;
+            voiceSource = gameObject.AddComponent<AudioSource>();
+            voiceSource.loop = false;
+            voiceSource.playOnAwake = false;
+            voiceSource.volume = GameSettings.SfxVolume;
         }
 
         void BuildTopBar(RectTransform parent)
@@ -277,6 +285,7 @@ namespace StarfallAcademy.Lobby
 
             chapterText.text = CategoryLabel(episode.Category) + "   /   " + episode.Title;
             lineIndex = resume ? StoryProgressService.GetLastLine(episode) : 0;
+            nextProgressCheckpoint = Time.unscaledTime + ProgressCheckpointSeconds;
             SetLine(lineIndex, false);
         }
 
@@ -327,6 +336,7 @@ namespace StarfallAcademy.Lobby
             lineIndex = Mathf.Clamp(requestedIndex, 0, episode.Lines.Count - 1);
             StoryLine line = episode.Lines[lineIndex];
             StoryProgressService.SaveLine(episode, lineIndex);
+            if (Time.unscaledTime >= nextProgressCheckpoint) FlushProgress();
             completionText.text = Mathf.RoundToInt(StoryProgressService.GetReadProgress(episode) * 100f) + "% READ";
             counterText.text = (lineIndex + 1).ToString("000") + " / " + episode.Lines.Count.ToString("000");
             autoTimer = 0f;
@@ -410,6 +420,12 @@ namespace StarfallAcademy.Lobby
                 bgmSource.Play();
             }
             if (line.Sfx != null) sfxSource.PlayOneShot(line.Sfx);
+            if (voiceSource != null)
+            {
+                voiceSource.Stop();
+                voiceSource.clip = line.Voice;
+                if (line.Voice != null) voiceSource.Play();
+            }
 
             if (transitionRoutine != null) StopCoroutine(transitionRoutine);
             stage.anchoredPosition = Vector2.zero;
@@ -563,6 +579,7 @@ namespace StarfallAcademy.Lobby
         void SelectChoice(StoryChoice choice)
         {
             choiceRoot.gameObject.SetActive(false);
+            FlushProgress();
             if (!string.IsNullOrWhiteSpace(choice.NextEpisodeId) && database != null)
             {
                 StoryEpisode nextEpisode = database.FindEpisode(choice.NextEpisodeId);
@@ -573,7 +590,12 @@ namespace StarfallAcademy.Lobby
                     LoadEpisode(nextEpisode, false);
                     return;
                 }
+                Debug.LogWarning($"[Starfall Story] Choice '{choice.Text}' in '{episode?.Id}' references "
+                    + $"missing episode '{choice.NextEpisodeId}'. Falling back to its line target or the next line.", episode);
             }
+            else if (!string.IsNullOrWhiteSpace(choice.NextEpisodeId))
+                Debug.LogWarning($"[Starfall Story] Choice '{choice.Text}' cannot resolve episode "
+                    + $"'{choice.NextEpisodeId}' because no StoryDatabase is loaded.", episode);
             if (!string.IsNullOrWhiteSpace(choice.NextLineId))
             {
                 int destination = FindLine(choice.NextLineId);
@@ -582,6 +604,8 @@ namespace StarfallAcademy.Lobby
                     SetLine(destination, false);
                     return;
                 }
+                Debug.LogWarning($"[Starfall Story] Choice '{choice.Text}' in '{episode?.Id}' references "
+                    + $"missing line '{choice.NextLineId}'. Advancing sequentially.", episode);
             }
             Next();
         }
@@ -613,6 +637,7 @@ namespace StarfallAcademy.Lobby
         {
             skipMode = !skipMode;
             if (skipMode) autoMode = false;
+            else FlushProgress();
             autoTimer = 0f;
             if (skipMode && isTyping) FinishTyping();
             RefreshModes();
@@ -664,12 +689,41 @@ namespace StarfallAcademy.Lobby
 
         public void Close()
         {
-            if (episode != null) StoryProgressService.SaveLine(episode, lineIndex);
+            FlushProgress();
             if (bgmSource != null) bgmSource.Stop();
+            if (voiceSource != null) voiceSource.Stop();
+            GameAudioDirector.SetSceneMusicSuppressed(false);
             StoryEpisode closedEpisode = episode;
             gameObject.SetActive(false);
             onClosed?.Invoke(closedEpisode);
             Destroy(gameObject);
+        }
+
+        void OnApplicationPause(bool paused)
+        {
+            if (paused) FlushProgress();
+        }
+
+        void OnApplicationFocus(bool hasFocus)
+        {
+            if (!hasFocus) FlushProgress();
+        }
+
+        void OnDisable()
+        {
+            FlushProgress();
+        }
+
+        void OnDestroy()
+        {
+            GameAudioDirector.SetSceneMusicSuppressed(false);
+        }
+
+        void FlushProgress()
+        {
+            if (episode != null) StoryProgressService.SaveLine(episode, lineIndex);
+            StoryProgressService.Flush();
+            nextProgressCheckpoint = Time.unscaledTime + ProgressCheckpointSeconds;
         }
 
         static string CategoryLabel(StoryCategory category)

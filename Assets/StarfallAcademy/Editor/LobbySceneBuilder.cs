@@ -13,6 +13,7 @@ namespace StarfallAcademy.Lobby.Editor
         [MenuItem("Starfall/Rebuild/Lobby Scene")]
         public static void Create()
         {
+            if (!SceneBuilderSafety.CanRunManualBuild()) return;
             if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
             Directory.CreateDirectory(Path.GetDirectoryName(ScenePath));
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);

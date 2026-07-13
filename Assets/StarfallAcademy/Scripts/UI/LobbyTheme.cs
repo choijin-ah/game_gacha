@@ -6,6 +6,7 @@ namespace StarfallAcademy.Lobby
     // 전체 색상과 폰트는 이 파일에서 한 번에 바꿀 수 있습니다.
     public sealed class LobbyTheme
     {
+        static Font cachedFont;
         public readonly Color Navy = Hex("09090D");
         public readonly Color Panel = Hex("17171D");
         public readonly Color Cyan = Hex("D7D7DE");
@@ -17,7 +18,8 @@ namespace StarfallAcademy.Lobby
 
         public LobbyTheme()
         {
-            Font = CreateRuntimeFont();
+            if (cachedFont == null) cachedFont = CreateRuntimeFont();
+            Font = cachedFont;
         }
 
         public static Color Hex(string value)
@@ -28,6 +30,23 @@ namespace StarfallAcademy.Lobby
 
         static Font CreateRuntimeFont()
         {
+            string[] bundledPaths =
+            {
+                "Fonts/StarfallKorean",
+                "Fonts/Pretendard-Regular",
+                "Fonts/NotoSansKR-Regular",
+                "Fonts/NotoSerifKR-Regular"
+            };
+            foreach (string path in bundledPaths)
+            {
+                Font bundled = Resources.Load<Font>(path);
+                if (bundled != null) return bundled;
+            }
+
+            // Also accept a differently named font placed under any Resources/Fonts folder.
+            Font[] bundledFonts = Resources.LoadAll<Font>("Fonts");
+            if (bundledFonts != null && bundledFonts.Length > 0) return bundledFonts[0];
+
             string[] preferred =
             {
                 "KoPub Batang", "Noto Serif CJK KR", "Noto Serif KR", "Batang", "BatangChe",
