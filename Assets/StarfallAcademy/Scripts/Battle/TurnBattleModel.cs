@@ -17,7 +17,9 @@ namespace StarfallAcademy.Lobby
         readonly Dictionary<CombatUnit, int> heatStacks = new Dictionary<CombatUnit, int>();
         readonly Dictionary<Guid, bool> targetWasBroken = new Dictionary<Guid, bool>();
         readonly StageData stage;
+        readonly BattleRuleSet rules;
         int emergencyHealsUsed;
+        long damageDealtToEnemies;
 
         public IReadOnlyList<CombatUnit> Players => players;
         public IReadOnlyList<CombatUnit> Enemies => enemies;
@@ -26,13 +28,31 @@ namespace StarfallAcademy.Lobby
         public CombatUnit CurrentActor => Core.CurrentActor;
         public int SP => Core.Resources.SkillPoints;
         public int SkillPoints => SP;
-        public BattleOutcome Outcome => Core.Outcome;
-        public bool PlayersDefeated => Outcome == BattleOutcome.Defeat;
-        public bool EnemiesDefeated => Outcome == BattleOutcome.Victory;
+        public BattleRuleSet Rules => rules;
+        public BattleOutcome Outcome
+        {
+            get
+            {
+                if (Core.Outcome != BattleOutcome.Ongoing) return Core.Outcome;
+                if (!HasRuleTermination) return BattleOutcome.Ongoing;
+                return rules.AllowNonKillResult ? BattleOutcome.Victory : BattleOutcome.Defeat;
+            }
+        }
+        public bool IsFinished => Outcome != BattleOutcome.Ongoing;
+        public bool PlayersDefeated => Core.Outcome == BattleOutcome.Defeat;
+        public bool EnemiesDefeated => Core.Outcome == BattleOutcome.Victory;
+        public long DamageDealtToEnemies => damageDealtToEnemies;
 
         public TurnBattleModel(FormationState formation, StageData stage, int? deterministicSeed = null)
+            : this(formation, stage, deterministicSeed, BattleRuleSet.Standard(stage))
+        {
+        }
+
+        public TurnBattleModel(FormationState formation, StageData stage,
+            int? deterministicSeed, BattleRuleSet ruleSet)
         {
             this.stage = stage ?? throw new ArgumentNullException(nameof(stage));
+            rules = ruleSet ?? BattleRuleSet.Standard(stage);
             BuildPlayers(formation);
             BuildEnemies(stage);
             units.AddRange(players);
@@ -61,6 +81,8 @@ namespace StarfallAcademy.Lobby
             CombatUnit target = null)
         {
             if (actor == null || actor.Team != BattleTeam.Player || !actor.IsAlive) return null;
+            if (actor.CharacterData != null)
+                config = CharacterAwakeningService.Default.ResolveAction(actor.CharacterData, config);
             target ??= FindAutomaticTarget(actor, config.TargetType);
             ActionRequest request = ActionRequest.FromConfig(actor, config, target);
             request.SkillId = actor.Id + "." + config.Kind.ToString().ToLowerInvariant();
@@ -99,8 +121,9 @@ namespace StarfallAcademy.Lobby
 
         public ActionResolution Execute(ActionRequest request)
         {
+            rules.RuntimeModifier?.ModifyAction(request);
             ActionResolution resolution = Core.Execute(request);
-            if (resolution.Success) ApplyPostActionRules(resolution);
+            ProcessResolution(resolution);
             ApplyBossPhaseTwoIfNeeded();
             return resolution;
         }
@@ -112,6 +135,7 @@ namespace StarfallAcademy.Lobby
                 failureReason = "필살기 요청이 아닙니다.";
                 return false;
             }
+            rules.RuntimeModifier?.ModifyAction(request);
             return Core.QueueUltimate(request, out failureReason);
         }
 
@@ -124,9 +148,48 @@ namespace StarfallAcademy.Lobby
         public bool TryExecute(out ActionResolution resolution)
         {
             if (!Core.TryExecuteNextUltimate(out resolution)) return false;
-            if (resolution != null && resolution.Success) ApplyPostActionRules(resolution);
+            ProcessResolution(resolution);
             ApplyBossPhaseTwoIfNeeded();
             return true;
+        }
+
+        public BattleResult CreateResult()
+        {
+            BattleEndReason reason = Core.Outcome == BattleOutcome.Victory
+                ? BattleEndReason.EnemiesDefeated
+                : Core.Outcome == BattleOutcome.Defeat
+                    ? BattleEndReason.PlayersDefeated
+                    : HasRuleTermination ? BattleEndReason.TurnLimit : BattleEndReason.Ongoing;
+            int defeatedAllies = 0;
+            for (int i = 0; i < players.Count; i++)
+                if (!players[i].IsAlive) defeatedAllies++;
+            return new BattleResult
+            {
+                Mode = rules.Mode,
+                EndReason = reason,
+                CoreOutcome = Core.Outcome,
+                IsSuccessful = Core.Outcome == BattleOutcome.Victory
+                    || reason == BattleEndReason.TurnLimit && rules.AllowNonKillResult,
+                RegularTurns = Core.RegularTurnsCompleted,
+                DefeatedAllies = defeatedAllies,
+                DamageDealtToEnemies = damageDealtToEnemies
+            };
+        }
+
+        bool HasRuleTermination => rules.HasTurnLimit && rules.AllowTimeoutResult
+            && Core.RegularTurnsCompleted >= rules.TurnLimit;
+
+        void ProcessResolution(ActionResolution resolution)
+        {
+            if (resolution == null || !resolution.Success) return;
+            ApplyPostActionRules(resolution);
+            foreach (DamageResult damage in resolution.DamageResults)
+            {
+                if (damage?.Target != null && damage.Target.Team == BattleTeam.Enemy)
+                    damageDealtToEnemies += Math.Max(0, damage.Application == null
+                        ? damage.FinalDamage
+                        : damage.Application.HpDamage + damage.Application.ShieldAbsorbed);
+            }
         }
 
         public bool TryExecuteNextUltimate(out ActionResolution resolution) => TryExecute(out resolution);
@@ -176,6 +239,10 @@ namespace StarfallAcademy.Lobby
                     character.CritChance,
                     character.CritDamage,
                     character.ResolveMaxEnergy());
+                CharacterAwakeningService.Default.ApplyBattleStats(character, stats);
+                EquipmentSetEffectService.Apply(character, stats);
+                rules.RuntimeModifier?.ModifyStats(BattleTeam.Player, stats);
+                stats.Sanitize();
                 var unit = new CombatUnit("player_" + character.Id + "_" + slot,
                     character.DisplayName, BattleTeam.Player, slot, stats, character,
                     character.Element)
@@ -199,6 +266,11 @@ namespace StarfallAcademy.Lobby
                 {
                     EffectResistance = entry.EffectResistance
                 };
+                stats.MaxHp *= rules.EnemyHpMultiplier;
+                stats.Attack *= rules.EnemyAttackMultiplier;
+                stats.Speed *= rules.EnemySpeedMultiplier;
+                rules.RuntimeModifier?.ModifyStats(BattleTeam.Enemy, stats);
+                stats.Sanitize();
                 bool isBoss = entry.Archetype == EnemyArchetype.BossObserver
                     || stageData.BossStage && slot == 0;
                 var unit = new CombatUnit(stageData.Id + "_" + entry.Id + "_" + slot,

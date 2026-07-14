@@ -10,15 +10,24 @@ namespace StarfallAcademy.Lobby
         public bool IsFeatured { get; }
         public bool IsNew { get; }
         public int DuplicateSkillMaterials { get; }
+        public int DuplicateFragments { get; }
+        public int PityBefore { get; }
+        public int PityAfter { get; }
+        public string BannerId { get; }
         public int Rarity => Character != null ? Character.Rarity : 0;
 
         public GachaResult(CharacterData character, bool isFeatured, bool isNew = false,
-            int duplicateSkillMaterials = 0)
+            int duplicateSkillMaterials = 0, int duplicateFragments = 0,
+            int pityBefore = 0, int pityAfter = 0, string bannerId = "")
         {
             Character = character;
             IsFeatured = isFeatured;
             IsNew = isNew;
             DuplicateSkillMaterials = Mathf.Max(0, duplicateSkillMaterials);
+            DuplicateFragments = Mathf.Max(0, duplicateFragments);
+            PityBefore = Mathf.Max(0, pityBefore);
+            PityAfter = Mathf.Max(0, pityAfter);
+            BannerId = bannerId ?? string.Empty;
         }
     }
 
@@ -55,24 +64,43 @@ namespace StarfallAcademy.Lobby
         readonly GachaConfig config;
         readonly CharacterDatabase database;
         readonly System.Random random;
+        readonly string bannerId;
         readonly string pityKey;
         readonly string featuredGuaranteeKey;
+        readonly string ticketItemId;
         int pityCount;
         bool featuredGuaranteed;
 
         public int PityCount => pityCount;
         public bool FeaturedGuaranteed => featuredGuaranteed;
         public int Currency => PlayerWallet.PremiumCurrency;
+        public string BannerId => bannerId;
+        public bool RequiresPickupSelection => !(config is GachaBannerData banner)
+            || banner.BannerType != GachaBannerType.Standard;
+        public bool UsesTickets => !string.IsNullOrWhiteSpace(ticketItemId);
+        public int TicketBalance => UsesTickets
+            ? new ItemInventoryService(PlayerPrefsMetaStorage.Shared).GetAmount(ticketItemId) : 0;
 
+        public GachaService(GachaBannerData banner, CharacterDatabase database,
+            int? randomSeed = null)
+            : this((GachaConfig)banner, database, randomSeed)
+        {
+        }
+
+        // Compatibility overload for callers that still load the legacy single config.
         public GachaService(GachaConfig config, CharacterDatabase database, int? randomSeed = null)
         {
             MetaPlayerPrefsTransaction.RecoverPending();
             this.config = config;
             this.database = database;
             random = randomSeed.HasValue ? new System.Random(randomSeed.Value) : new System.Random();
+            bannerId = config is GachaBannerData banner && !string.IsNullOrWhiteSpace(banner.Id)
+                ? banner.Id : "legacy_gacha_config";
             string group = config != null ? config.PityGroupId : "default";
             pityKey = "StarfallAcademy.Gacha.Pity." + group;
             featuredGuaranteeKey = "StarfallAcademy.Gacha.FeaturedGuarantee." + group;
+            ticketItemId = config is GachaBannerData ticketBanner
+                ? ticketBanner.TicketItemId : string.Empty;
             pityCount = Mathf.Max(0, PlayerPrefs.GetInt(pityKey, 0));
             featuredGuaranteed = PlayerPrefs.GetInt(featuredGuaranteeKey, 0) == 1;
         }
@@ -82,14 +110,19 @@ namespace StarfallAcademy.Lobby
             if (!TryValidatePull(count, selectedPickup, out string validationError))
                 return GachaPullResponse.Failed(validationError);
 
-            int cost = count == 1 ? config.SinglePullCost : config.TenPullCost;
-            if (Currency < cost)
+            int currencyCost = count == 1 ? config.SinglePullCost : config.TenPullCost;
+            int ticketCost = count;
+            if (!UsesTickets && Currency < currencyCost)
                 return GachaPullResponse.Failed(PlayerWallet.PremiumCurrencyDisplayName + "이 부족합니다.");
+            if (UsesTickets && TicketBalance < ticketCost)
+                return GachaPullResponse.Failed(ticketItemId + "이 부족합니다. ("
+                    + TicketBalance + "/" + ticketCost + ")");
 
             int nextPityCount = pityCount;
             bool nextFeaturedGuaranteed = featuredGuaranteed;
             int compensationCapacity = int.MaxValue - PlayerWallet.SkillMaterials;
             int totalDuplicateMaterials = 0;
+            var duplicateFragmentGrants = new Dictionary<CharacterData, int>();
             bool hasFourStarOrHigher = false;
             var pulledCharacterIds = new HashSet<string>(StringComparer.Ordinal);
             var results = new List<GachaResult>(count);
@@ -105,11 +138,23 @@ namespace StarfallAcademy.Lobby
                     return GachaPullResponse.Failed("가챠 등급 풀에서 캐릭터를 선택하지 못했습니다.");
                 results.Add(result);
                 totalDuplicateMaterials += result.DuplicateSkillMaterials;
+                if (result.Character != null && result.DuplicateFragments > 0)
+                {
+                    duplicateFragmentGrants.TryGetValue(result.Character, out int accumulated);
+                    long total = (long)accumulated + result.DuplicateFragments;
+                    duplicateFragmentGrants[result.Character] = total >= int.MaxValue
+                        ? int.MaxValue : (int)total;
+                }
                 if (result.Rarity >= 4) hasFourStarOrHigher = true;
             }
 
             var writes = new List<MetaIntWrite>(4 + results.Count * 3);
-            if (!PlayerWallet.TryStagePremiumCurrencySpend(cost, writes))
+            if (UsesTickets)
+            {
+                if (!ItemInventoryService.TryAppendSpendWrite(ticketItemId, ticketCost, writes))
+                    return GachaPullResponse.Failed(ticketItemId + "이 부족합니다.");
+            }
+            else if (!PlayerWallet.TryStagePremiumCurrencySpend(currencyCost, writes))
                 return GachaPullResponse.Failed(PlayerWallet.PremiumCurrencyDisplayName + "이 부족합니다.");
             writes.Add(new MetaIntWrite(pityKey, nextPityCount));
             writes.Add(new MetaIntWrite(featuredGuaranteeKey, nextFeaturedGuaranteed ? 1 : 0));
@@ -123,13 +168,32 @@ namespace StarfallAcademy.Lobby
             }
             if (totalDuplicateMaterials > 0)
                 PlayerWallet.StageSkillMaterialsGrant(totalDuplicateMaterials, writes);
+            foreach (KeyValuePair<CharacterData, int> grant in duplicateFragmentGrants)
+            {
+                ItemInventoryService.AppendGrantWrite(
+                    ItemInventoryService.CharacterFragmentId(grant.Key.Id),
+                    grant.Value, writes);
+            }
 
-            if (!MetaPlayerPrefsTransaction.Commit(writes))
+            MetaStringWrite historyWrite;
+            try
+            {
+                historyWrite = GachaHistoryService.CreateRecordWrite(bannerId, results,
+                    ContentTime.UtcNow);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError("[Starfall Gacha] Failed to stage pull history: "
+                    + exception.Message);
+                return GachaPullResponse.Failed("가챠 결과를 저장하지 못했습니다. 다시 시도해 주세요.");
+            }
+
+            if (!MetaPlayerPrefsTransaction.Commit(writes, new[] { historyWrite }))
                 return GachaPullResponse.Failed("가챠 결과를 저장하지 못했습니다. 다시 시도해 주세요.");
 
             pityCount = nextPityCount;
             featuredGuaranteed = nextFeaturedGuaranteed;
-            return GachaPullResponse.Completed(results, cost);
+            return GachaPullResponse.Completed(results, UsesTickets ? 0 : currencyCost);
         }
 
         public bool TryValidatePull(int count, CharacterData selectedPickup, out string error)
@@ -139,14 +203,15 @@ namespace StarfallAcademy.Lobby
                 error = "가챠 설정 에셋이 없습니다.";
                 return false;
             }
+            if (config is GachaBannerData scheduledBanner
+                && !scheduledBanner.IsAvailableAt(ContentTime.UtcNow))
+            {
+                error = "현재 이용 가능한 모집 배너가 아닙니다.";
+                return false;
+            }
             if (database == null || database.Characters == null || database.Characters.Count == 0)
             {
                 error = "캐릭터 데이터가 없습니다.";
-                return false;
-            }
-            if (selectedPickup == null || selectedPickup.Rarity < 5)
-            {
-                error = "5성 이상 픽업 캐릭터를 선택하세요.";
                 return false;
             }
             if (count != 1 && count != 10)
@@ -154,12 +219,17 @@ namespace StarfallAcademy.Lobby
                 error = "지원하지 않는 모집 횟수입니다.";
                 return false;
             }
-            if (!IsConfiguredPickup(selectedPickup))
+            if (RequiresPickupSelection && (selectedPickup == null || selectedPickup.Rarity < 5))
+            {
+                error = "5성 이상 픽업 캐릭터를 선택하세요.";
+                return false;
+            }
+            if (RequiresPickupSelection && !IsConfiguredPickup(selectedPickup))
             {
                 error = "선택한 캐릭터가 현재 배너의 픽업 목록에 없습니다.";
                 return false;
             }
-            if (!ContainsCharacter(selectedPickup))
+            if (RequiresPickupSelection && !ContainsCharacter(selectedPickup))
             {
                 error = "선택한 픽업 캐릭터가 현재 배너 데이터베이스에 없습니다.";
                 return false;
@@ -179,6 +249,7 @@ namespace StarfallAcademy.Lobby
             ref int nextPityCount, ref bool nextFeaturedGuaranteed,
             HashSet<string> pulledCharacterIds, ref int compensationCapacity)
         {
+            int pityBefore = nextPityCount;
             int nextPull = nextPityCount + 1;
             float topRate = config.TopRarityRatePercent;
             if (nextPull >= config.SoftPityStart)
@@ -206,26 +277,34 @@ namespace StarfallAcademy.Lobby
             if (topRarity)
             {
                 nextPityCount = 0;
-                featured = nextFeaturedGuaranteed || RollPercent(config.FeaturedSharePercent);
-                if (featured)
+                if (!RequiresPickupSelection)
                 {
-                    result = selectedPickup;
+                    result = PickRandomCharacter(5, true, null);
                     nextFeaturedGuaranteed = false;
                 }
                 else
                 {
-                    result = PickRandomCharacter(5, true, selectedPickup);
-                    if (result == null)
+                    featured = nextFeaturedGuaranteed || RollPercent(config.FeaturedSharePercent);
+                    if (featured)
                     {
-                        // There is no off-banner top-rarity character. This remains a
-                        // same-tier selection and is intentionally treated as featured.
                         result = selectedPickup;
-                        featured = true;
                         nextFeaturedGuaranteed = false;
                     }
-                    else if (config.GuaranteeFeaturedAfterMiss)
+                    else
                     {
-                        nextFeaturedGuaranteed = true;
+                        result = PickRandomCharacter(5, true, selectedPickup);
+                        if (result == null)
+                        {
+                            // There is no off-banner top-rarity character. This remains a
+                            // same-tier selection and is intentionally treated as featured.
+                            result = selectedPickup;
+                            featured = true;
+                            nextFeaturedGuaranteed = false;
+                        }
+                        else if (config.GuaranteeFeaturedAfterMiss)
+                        {
+                            nextFeaturedGuaranteed = true;
+                        }
                     }
                 }
             }
@@ -243,7 +322,10 @@ namespace StarfallAcademy.Lobby
             int duplicateMaterials = alreadyOwned ? GetDuplicateSkillMaterialReward(result) : 0;
             duplicateMaterials = Mathf.Min(duplicateMaterials, Mathf.Max(0, compensationCapacity));
             compensationCapacity -= duplicateMaterials;
-            return new GachaResult(result, featured, isNew, duplicateMaterials);
+            int duplicateFragments = alreadyOwned ? GetDuplicateFragmentReward(result) : 0;
+            return new GachaResult(result, featured, isNew, duplicateMaterials,
+                duplicateFragments,
+                pityBefore, nextPityCount, bannerId);
         }
 
         CharacterData PickRandomCharacter(int rarity, bool atLeastRarity, CharacterData exclude)
@@ -287,6 +369,16 @@ namespace StarfallAcademy.Lobby
         static int GetDuplicateSkillMaterialReward(CharacterData character)
         {
             if (character == null) return 0;
+            if (character.Rarity >= 5) return 50;
+            if (character.Rarity == 4) return 20;
+            return 10;
+        }
+
+        static int GetDuplicateFragmentReward(CharacterData character)
+        {
+            if (character == null) return 0;
+            int configured = character.DuplicateFragmentReward;
+            if (configured > 0) return configured;
             if (character.Rarity >= 5) return 50;
             if (character.Rarity == 4) return 20;
             return 10;

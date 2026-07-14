@@ -270,7 +270,7 @@ namespace StarfallAcademy.Lobby
         {
             if (changingScene) return;
             changingScene = true;
-            SceneManager.LoadScene(SceneNames.Lobby);
+            StarfallSceneFlow.Load(SceneNames.Lobby);
         }
 
         static RectTransform CreateLayer(string name, Transform parent)

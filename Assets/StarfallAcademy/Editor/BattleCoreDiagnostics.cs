@@ -18,7 +18,49 @@ namespace StarfallAcademy.Lobby
             VerifyStageTenPhaseTransition();
             VerifyEnemyWarningAndBossPhase();
             VerifyAutoDecisionCore();
+            VerifyWeeklyBossScoring();
+            VerifyTowerModifiers();
             UnityEngine.Debug.Log("[Starfall Battle] Core smoke test passed.");
+        }
+
+        static void VerifyWeeklyBossScoring()
+        {
+            WeeklyBossDifficulty difficulty = UnityEngine.JsonUtility.FromJson<WeeklyBossDifficulty>(
+                "{\"difficultyId\":\"diagnostic\",\"turnLimit\":20,\"weeklyAttempts\":1}");
+            var result = new BattleResult(BattleMode.WeeklyBoss, BattleEndReason.EnemiesDefeated,
+                BattleOutcome.Victory, true, 10, 1, 50000);
+            int score = WeeklyBossScoreCalculator.Calculate(result, difficulty);
+            Require(score == 167500
+                && score == WeeklyBossScoreCalculator.Calculate(result, difficulty),
+                "Weekly boss score bonuses or deterministic calculation regressed.");
+        }
+
+        static void VerifyTowerModifiers()
+        {
+            TowerModifierDefinition enemyHp = UnityEngine.JsonUtility.FromJson<TowerModifierDefinition>(
+                "{\"modifierId\":\"diagnostic_hp\",\"type\":0,\"value\":0.5}");
+            TowerModifierDefinition playerDamage = UnityEngine.JsonUtility.FromJson<TowerModifierDefinition>(
+                "{\"modifierId\":\"diagnostic_damage\",\"type\":3,\"value\":0.2}");
+            var service = new TowerModifierService(new[] { enemyHp, playerDamage });
+
+            var enemyStats = new BattleBaseStats(1000f, 100f, 50f, 80f);
+            service.ModifyStats(BattleTeam.Enemy, enemyStats);
+            Require(Near(enemyStats.MaxHp, 1500f) && Near(enemyStats.Attack, 100f),
+                "Tower enemy stat modifier did not apply only to its configured stat.");
+
+            CombatUnit player = Unit("tower-modifier-player", BattleTeam.Player, 0, 100f);
+            var request = new ActionRequest(player, BattleActionKind.Skill,
+                BattleTargetType.SingleEnemy)
+            {
+                DamageMultiplier = 2f,
+                SecondaryDamageMultiplier = 1f
+            };
+            service.ModifyAction(request);
+            service.ModifyAction(request);
+            Require(Near(request.DamageMultiplier, 2.4f)
+                && request.SecondaryDamageMultiplier.HasValue
+                && Near(request.SecondaryDamageMultiplier.Value, 1.2f),
+                "Tower action modifier was missing or applied more than once to one request.");
         }
 
         static void VerifyResourcesAndUltimateQueue()

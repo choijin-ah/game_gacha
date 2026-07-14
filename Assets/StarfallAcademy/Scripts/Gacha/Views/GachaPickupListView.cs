@@ -84,7 +84,7 @@ namespace StarfallAcademy.Lobby
             }
 
             if (validPickups.Count == 0)
-                ui.CreateText("Empty Pickup", "등록된 5★ 픽업 캐릭터가 없습니다.\n\nStarfall > Data > Gacha Configuration\n에서 픽업을 추가하세요.",
+                ui.CreateText("Empty Pickup", "등록된 5★ 픽업 캐릭터가 없습니다.\n\nStarfall > Data > Gacha Banner Database\n에서 픽업을 추가하세요.",
                     content, 16, FontStyle.Normal, ui.Theme.Muted, new Vector2(.5f, 1), new Vector2(.5f, 1),
                     new Vector2(0, -100), new Vector2(350, 150), TextAnchor.MiddleCenter);
             LayoutRebuilder.ForceRebuildLayoutImmediate(content);

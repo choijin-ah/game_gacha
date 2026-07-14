@@ -107,7 +107,8 @@ namespace StarfallAcademy.Lobby
             if (formation.Count == 0 && firstOwned != null)
             {
                 formation.Toggle(firstOwned);
-                formation.Save();
+                if (!formation.Save())
+                    Debug.LogError("[Starfall] Failed to persist the starter formation.");
             }
         }
 
@@ -370,9 +371,11 @@ namespace StarfallAcademy.Lobby
             description.text = stage.Description;
             recommended.text = stage.RecommendedPower.ToString("N0");
             enemies.text = stage.EnemyName + "  × " + stage.EnemyCount + "  ·  LV." + stage.EnemyLevel;
-            rewards.text = "● " + stage.RewardCredits.ToString("N0") + " 크레딧   ◇ " +
-                stage.RewardSkillMaterials + " " + PlayerWallet.SkillMaterialDisplayName
-                + "   EXP " + stage.AccountExperienceReward;
+            rewards.text = stage.HasRepeatClearRewardPackage
+                ? stage.RepeatClearRewardPackage.Summary
+                : "● " + stage.RewardCredits.ToString("N0") + " 크레딧   ◇ "
+                    + stage.RewardSkillMaterials + " " + PlayerWallet.SkillMaterialDisplayName
+                    + "   EXP " + stage.AccountExperienceReward;
             int stars = StageProgression.GetStars(stage);
             lockState.text = unlocked ? (StageProgression.IsCleared(stage)
                 ? "CLEAR  " + StarLabel(stars) : "UNLOCKED") : "LOCKED";
@@ -407,7 +410,7 @@ namespace StarfallAcademy.Lobby
             MissionService.RecordStaminaSpent(selected.StaminaCost);
             BattleSession.BeginRun(selected, selectedIndex, true);
             changingScene = true;
-            SceneManager.LoadScene(SceneNames.TurnBattle);
+            StarfallSceneFlow.Load(SceneNames.TurnBattle);
         }
 
         void SweepStage()
@@ -423,20 +426,42 @@ namespace StarfallAcademy.Lobby
                 toast.Show("별 3개로 클리어하면 소탕할 수 있습니다");
                 return;
             }
+
+            string transactionId = "sweep:" + selected.Id + ":" + System.Guid.NewGuid().ToString("N");
+            int equipmentDrops = 0;
+            var equipmentInventory = EquipmentInventoryService.Default;
+            var equipmentDropService = new EquipmentDropService(equipmentInventory);
+            EquipmentInventoryStorageSnapshot equipmentSnapshot =
+                equipmentInventory.CaptureStorageSnapshot();
+            IReadOnlyList<EquipmentDefinition> rolledEquipment =
+                equipmentDropService.Roll(selected.EquipmentDropTable);
+            System.Action stageEquipmentDrops = () =>
+                equipmentDrops = equipmentDropService.StageGrant(transactionId,
+                    rolledEquipment).Count;
+            System.Action rollbackEquipmentDrops = () =>
+                equipmentInventory.RestoreStorageSnapshot(equipmentSnapshot);
+
             if (!StaminaService.Default.TrySpend(selected.StaminaCost))
             {
                 toast.Show("행동력이 부족합니다");
                 RefreshStamina();
                 return;
             }
-
-            RewardGrantResult result = RewardService.Grant("sweep:" + selected.Id + ":"
-                + System.Guid.NewGuid().ToString("N"), new RewardBundle(selected.RewardCredits,
-                selected.RewardSkillMaterials, selected.AccountExperienceReward));
+            RewardGrantResult result = selected.HasRepeatClearRewardPackage
+                ? RewardPackageService.Default.Grant(transactionId,
+                    selected.RepeatClearRewardPackage, stageEquipmentDrops,
+                    rollbackEquipmentDrops)
+                : RewardService.Default.GrantReward(transactionId,
+                    new RewardBundle(selected.RewardCredits,
+                        selected.RewardSkillMaterials, selected.AccountExperienceReward),
+                    stageEquipmentDrops, rollbackEquipmentDrops);
             if (result.Succeeded) MissionService.RecordStaminaSpent(selected.StaminaCost);
             else StaminaService.Default.Charge(selected.StaminaCost, true);
             toast.Show(result.Succeeded
-                ? "소탕 완료  ·  " + selected.RewardCredits.ToString("N0") + " 크레딧 획득"
+                ? "소탕 완료  ·  " + (selected.HasRepeatClearRewardPackage
+                    ? selected.RepeatClearRewardPackage.Summary
+                    : selected.RewardCredits.ToString("N0") + " 크레딧 획득")
+                    + (equipmentDrops > 0 ? "  ·  장비 " + equipmentDrops + "개" : string.Empty)
                 : "소탕 보상을 지급하지 못했습니다");
             RefreshStamina();
             SelectStage(selected, selectedIndex);
@@ -470,14 +495,14 @@ namespace StarfallAcademy.Lobby
         {
             SceneNavigation.FormationReturnScene = SceneNames.StageSelect;
             changingScene = true;
-            SceneManager.LoadScene(SceneNames.Formation);
+            StarfallSceneFlow.Load(SceneNames.Formation);
         }
 
         void ReturnToLobby()
         {
             if (changingScene) return;
             changingScene = true;
-            SceneManager.LoadScene(SceneNames.Lobby);
+            StarfallSceneFlow.Load(SceneNames.Lobby);
         }
 
         static RectTransform CreateLayer(string name, Transform parent)

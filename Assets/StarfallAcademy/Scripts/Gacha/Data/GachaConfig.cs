@@ -4,7 +4,7 @@ using UnityEngine;
 namespace StarfallAcademy.Lobby
 {
     [CreateAssetMenu(fileName = "GachaConfig", menuName = "Starfall/Gacha Configuration")]
-    public sealed class GachaConfig : ScriptableObject
+    public class GachaConfig : ScriptableObject
     {
         [Header("Banner")]
         [SerializeField] string bannerTitle = "별을 잇는 인연";
@@ -30,10 +30,12 @@ namespace StarfallAcademy.Lobby
         [SerializeField, Min(0)] int singlePullCost = 160;
         [SerializeField, Min(0)] int tenPullCost = 1600;
 
-        public string BannerTitle => bannerTitle;
-        public string BannerSubtitle => bannerSubtitle;
+        public string BannerTitle => string.IsNullOrWhiteSpace(bannerTitle)
+            ? name : bannerTitle;
+        public string BannerSubtitle => bannerSubtitle ?? string.Empty;
         public string PityGroupId => string.IsNullOrWhiteSpace(pityGroupId) ? "default" : pityGroupId;
-        public IReadOnlyList<CharacterData> PickupCharacters => pickupCharacters;
+        public IReadOnlyList<CharacterData> PickupCharacters => pickupCharacters
+            ?? (IReadOnlyList<CharacterData>)System.Array.Empty<CharacterData>();
         public float TopRarityRatePercent => topRarityRatePercent;
         public float FeaturedSharePercent => featuredSharePercent;
         public float FourStarRatePercent => fourStarRatePercent;
@@ -50,12 +52,16 @@ namespace StarfallAcademy.Lobby
 
         public void AddPickup(CharacterData character)
         {
+            if (pickupCharacters == null) pickupCharacters = new List<CharacterData>();
             if (character != null && !pickupCharacters.Contains(character)) pickupCharacters.Add(character);
         }
 
-        public void RemovePickup(CharacterData character) => pickupCharacters.Remove(character);
+        public void RemovePickup(CharacterData character)
+        {
+            if (pickupCharacters != null) pickupCharacters.Remove(character);
+        }
 
-        void OnValidate()
+        protected virtual void OnValidate()
         {
             topRarityRatePercent = Mathf.Clamp(topRarityRatePercent, .01f, 100f);
             featuredSharePercent = Mathf.Clamp(featuredSharePercent, 0f, 100f);
@@ -65,6 +71,7 @@ namespace StarfallAcademy.Lobby
             softPityBonusPerPullPercent = Mathf.Max(0, softPityBonusPerPullPercent);
             singlePullCost = Mathf.Max(0, singlePullCost);
             tenPullCost = Mathf.Max(0, tenPullCost);
+            if (pickupCharacters == null) pickupCharacters = new List<CharacterData>();
         }
     }
 }

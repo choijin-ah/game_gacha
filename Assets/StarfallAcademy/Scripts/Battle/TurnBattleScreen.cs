@@ -186,7 +186,7 @@ namespace StarfallAcademy.Lobby
                 return;
             }
 
-            battle = new TurnBattleModel(formation, stage);
+            battle = new TurnBattleModel(formation, stage, null, BattleSession.Rules);
             autoDecisionService = new AutoDecisionService(battle);
             BuildTurnOrderPanel(safeRoot);
             BuildBattlefield(safeRoot);
@@ -247,7 +247,7 @@ namespace StarfallAcademy.Lobby
                 UrbanFantasyStyle.PanelStrong, OpenPause);
             UrbanFantasyStyle.AddBorder(ui, back.GetComponent<RectTransform>());
             ui.CreateText("Battle Stage",
-                stage != null ? stage.Chapter + "  /  " + stage.DisplayName : "BATTLE",
+                BattleHeaderText(),
                 header, 20, FontStyle.Normal, UrbanFantasyStyle.Silver,
                 new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(285, 0),
                 new Vector2(410, 38), TextAnchor.MiddleLeft);
@@ -461,7 +461,10 @@ namespace StarfallAcademy.Lobby
             Text statusText = ui.CreateText("Statuses", string.Empty, card.transform, 9,
                 FontStyle.Normal, new Color(.75f, .78f, .84f, .9f), new Vector2(0, 0),
                 new Vector2(1, 0), new Vector2(0, enemy ? 18 : 58), new Vector2(-20, 20),
-                TextAnchor.MiddleLeft);
+                TextAnchor.MiddleLeft, true);
+            UiTooltipTrigger statusTooltip = statusText.gameObject.AddComponent<UiTooltipTrigger>();
+            statusTooltip.Initialize((RectTransform)transform, ui,
+                "상태 효과 · " + unit.DisplayName, () => BuildStatusTooltip(unit));
             Text warningText = ui.CreateText("Danger Warning", string.Empty, card.transform, 11,
                 FontStyle.Bold, new Color(.95f, .22f, .17f, 1f), new Vector2(0, 1),
                 new Vector2(1, 1), new Vector2(0, 16), new Vector2(-16, 24), TextAnchor.MiddleCenter);
@@ -719,7 +722,7 @@ namespace StarfallAcademy.Lobby
             SetCommandInput(false);
             ClearTargetingState();
             RefreshAll();
-            if (!changingScene) ShowResult(battle.Outcome == BattleOutcome.Victory);
+            if (!changingScene) ShowResult(battle.CreateResult());
         }
 
         IEnumerator WaitForPauseAndUltimateTarget()
@@ -1236,7 +1239,7 @@ namespace StarfallAcademy.Lobby
             RefreshAll();
         }
 
-        void ShowResult(bool victory)
+        void ShowResult(BattleResult battleResult)
         {
             if (battleFinished) return;
             battleFinished = true;
@@ -1245,9 +1248,15 @@ namespace StarfallAcademy.Lobby
             if (pauseLayer != null) pauseLayer.SetActive(false);
             resultLayer.SetActive(true);
             resultLayer.transform.SetAsLastSibling();
-            bool rewardEligible = BattleSession.EntryStaminaPaid;
+            if (BattleSession.ModeContext != null)
+            {
+                ShowModeResult(BattleSession.ModeContext, battleResult);
+                return;
+            }
+
+            bool rewardEligible = BattleSession.RewardEligible;
             if (rewardEligible) MissionService.RecordBattleCompleted();
-            if (victory)
+            if (battleResult != null && battleResult.IsSuccessful)
             {
                 int defeatedAllies = 0;
                 foreach (CombatUnit player in battle.Players)
@@ -1267,17 +1276,55 @@ namespace StarfallAcademy.Lobby
                 string runId = string.IsNullOrWhiteSpace(BattleSession.RunId)
                     ? Guid.NewGuid().ToString("N") : BattleSession.RunId;
                 bool firstClearCandidate = !StageProgression.IsCleared(stage);
+                RewardPackage rewardPackage = firstClearCandidate
+                    ? stage.FirstClearRewardPackage : stage.RepeatClearRewardPackage;
+                bool usesRewardPackage = rewardPackage != null && !rewardPackage.IsEmpty;
                 StageCompletionResult completion = null;
                 Action rollbackProgression = StageProgression.CaptureRollback(stage);
-                RewardGrantResult reward = RewardService.Default.GrantReward(
-                    "battle:" + stage.Id + ":" + runId,
-                    new RewardBundle(stage.RewardCredits, stage.RewardSkillMaterials,
-                        stage.AccountExperienceReward,
-                        firstClearCandidate ? stage.FirstClearPremiumCurrency : 0),
-                    () => completion = StageProgression.Complete(stage,
+                string transactionId = "battle:" + stage.Id + ":" + runId;
+                int equipmentDrops = 0;
+                var equipmentInventory = EquipmentInventoryService.Default;
+                var equipmentDropService = new EquipmentDropService(equipmentInventory);
+                EquipmentInventoryStorageSnapshot equipmentSnapshot;
+                IReadOnlyList<EquipmentDefinition> rolledEquipment;
+                try
+                {
+                    equipmentSnapshot = equipmentInventory.CaptureStorageSnapshot();
+                    rolledEquipment = equipmentDropService.Roll(stage.EquipmentDropTable,
+                        StableSeed(transactionId));
+                }
+                catch (Exception exception)
+                {
+                    StaminaService.Default.Charge(stage.StaminaCost, true);
+                    resultTitle.text = "보상 처리 실패";
+                    resultBody.text = "보상 준비에 실패해 행동력을 반환했습니다. 다시 도전해 주세요.";
+                    nextButton.interactable = true;
+                    nextButtonLabel.text = "다시 도전";
+                    Debug.LogError("[Starfall] Equipment drop preparation failed for "
+                        + transactionId + ": " + exception);
+                    return;
+                }
+                Action commitParticipants = () =>
+                {
+                    completion = StageProgression.Complete(stage,
                         BattleSession.SelectedStageIndex, defeatedAllies,
-                        battle.Core.RegularTurnsCompleted, false),
-                    rollbackProgression);
+                        battle.Core.RegularTurnsCompleted, false);
+                    equipmentDrops = equipmentDropService.StageGrant(transactionId,
+                        rolledEquipment).Count;
+                };
+                Action rollbackParticipants = () =>
+                {
+                    try { rollbackProgression?.Invoke(); }
+                    finally { equipmentInventory.RestoreStorageSnapshot(equipmentSnapshot); }
+                };
+                RewardGrantResult reward = usesRewardPackage
+                    ? RewardPackageService.Default.Grant(transactionId, rewardPackage,
+                        commitParticipants, rollbackParticipants)
+                    : RewardService.Default.GrantReward(transactionId,
+                        new RewardBundle(stage.RewardCredits, stage.RewardSkillMaterials,
+                            stage.AccountExperienceReward,
+                            firstClearCandidate ? stage.FirstClearPremiumCurrency : 0),
+                        commitParticipants, rollbackParticipants);
                 victoryProgressCommitted = reward.Succeeded || reward.AlreadyProcessed;
                 if (reward.AlreadyProcessed && completion == null)
                     completion = StageProgression.Complete(stage,
@@ -1295,14 +1342,18 @@ namespace StarfallAcademy.Lobby
 
                 int nextIndex = FindNextStageIndex(BattleSession.SelectedStageIndex);
                 bool hasNext = nextIndex >= 0;
+                string rewardSummary = usesRewardPackage
+                    ? rewardPackage.Summary
+                    : stage.RewardCredits.ToString("N0") + " 크레딧     ◇  "
+                        + stage.RewardSkillMaterials + " " + PlayerWallet.SkillMaterialDisplayName
+                        + "     EXP " + stage.AccountExperienceReward
+                        + (completion.FirstClear
+                            ? "     ♦ " + stage.FirstClearPremiumCurrency : string.Empty);
                 resultTitle.text = "작 전 완 료";
                 resultBody.text = stage.DisplayName + " 클리어   " + StarLabel(completion.EarnedStars)
                     + "\nACTION " + completion.RegularTurns.ToString("N0") + "  ·  전투 불능 "
-                    + completion.DefeatedAllies + "명\n\n●  "
-                    + stage.RewardCredits.ToString("N0") + " 크레딧     ◇  "
-                    + stage.RewardSkillMaterials + " " + PlayerWallet.SkillMaterialDisplayName
-                    + "     EXP " + stage.AccountExperienceReward
-                    + (completion.FirstClear ? "     ♦ " + stage.FirstClearPremiumCurrency : string.Empty)
+                    + completion.DefeatedAllies + "명\n\n●  " + rewardSummary
+                    + (equipmentDrops > 0 ? "\n장비 드롭  " + equipmentDrops + "개" : string.Empty)
                     + (completion.FirstClear ? hasNext
                         ? "\n\nFIRST CLEAR  ·  다음 작전이 해금되었습니다"
                         : stage.Category == StageCategory.Main
@@ -1324,6 +1375,22 @@ namespace StarfallAcademy.Lobby
         void NextStage()
         {
             if (!battleFinished || changingScene) return;
+            if (BattleSession.ModeContext != null)
+            {
+                if (!BattleSession.ModeContext.TryCreateRetry(out IBattleModeRunContext retry,
+                    out string failureReason))
+                {
+                    nextButton.interactable = false;
+                    nextButtonLabel.text = "재도전 불가";
+                    if (!string.IsNullOrWhiteSpace(failureReason))
+                        resultBody.text += "\n\n" + failureReason;
+                    return;
+                }
+                BattleSession.BeginSpecialRun(retry);
+                changingScene = true;
+                StarfallSceneFlow.Load(SceneNames.TurnBattle);
+                return;
+            }
             StageData targetStage = stage;
             int targetIndex = BattleSession.SelectedStageIndex;
             if (battle.Outcome == BattleOutcome.Victory && victoryProgressCommitted)
@@ -1343,7 +1410,7 @@ namespace StarfallAcademy.Lobby
             MissionService.RecordStaminaSpent(targetStage.StaminaCost);
             BattleSession.BeginRun(targetStage, targetIndex, true);
             changingScene = true;
-            SceneManager.LoadScene(SceneNames.TurnBattle);
+            StarfallSceneFlow.Load(SceneNames.TurnBattle);
         }
 
         static string StarLabel(int stars) => new string('★', Mathf.Clamp(stars, 0, 3))
@@ -1367,9 +1434,67 @@ namespace StarfallAcademy.Lobby
         void ReturnToStages()
         {
             if (changingScene) return;
+            string returnScene = BattleSession.ReturnScene;
             changingScene = true;
             paused = false;
-            SceneManager.LoadScene(SceneNames.StageSelect);
+            BattleSession.Clear();
+            StarfallSceneFlow.Load(returnScene);
+        }
+
+        void ShowModeResult(IBattleModeRunContext context, BattleResult battleResult)
+        {
+            BattleModeCompletion completion;
+            try
+            {
+                completion = context.Complete(battleResult) ?? new BattleModeCompletion
+                {
+                    Succeeded = false,
+                    Title = "결 과 처 리 실 패",
+                    Body = "콘텐츠 결과를 처리하지 못했습니다.",
+                    NextLabel = "돌아가기",
+                    CanRetry = false
+                };
+            }
+            catch (Exception exception)
+            {
+                completion = new BattleModeCompletion
+                {
+                    Succeeded = false,
+                    Title = "결 과 처 리 실 패",
+                    Body = exception.Message,
+                    NextLabel = "돌아가기",
+                    CanRetry = false
+                };
+            }
+            victoryProgressCommitted = completion.Succeeded;
+            resultTitle.text = string.IsNullOrWhiteSpace(completion.Title)
+                ? "전 투 결 과" : completion.Title;
+            resultBody.text = completion.Body ?? string.Empty;
+            nextButton.interactable = completion.CanRetry;
+            nextButtonLabel.text = string.IsNullOrWhiteSpace(completion.NextLabel)
+                ? "재도전" : completion.NextLabel;
+        }
+
+        string BattleHeaderText()
+        {
+            if (stage == null) return "BATTLE";
+            BattleRuleSet activeRules = BattleSession.Rules;
+            string prefix = activeRules.Mode == BattleMode.WeeklyBoss ? "WEEKLY BOSS"
+                : activeRules.Mode == BattleMode.ChallengeTower ? "CHALLENGE TOWER"
+                : stage.Chapter;
+            string limit = activeRules.HasTurnLimit ? "  ·  LIMIT " + activeRules.TurnLimit : string.Empty;
+            return prefix + "  /  " + stage.DisplayName + limit;
+        }
+
+        static int StableSeed(string value)
+        {
+            unchecked
+            {
+                uint hash = 2166136261;
+                for (int i = 0; i < (value?.Length ?? 0); i++)
+                    hash = (hash ^ value[i]) * 16777619;
+                return (int)hash;
+            }
         }
 
         static Image CreateFill(string name, Transform parent, Color color)
@@ -1430,6 +1555,46 @@ namespace StarfallAcademy.Lobby
             }
             if (unit.Statuses.Count > visible) labels.Add("+" + (unit.Statuses.Count - visible));
             return labels.Count > 0 ? string.Join("   ", labels) : "상태 효과 없음";
+        }
+
+        static string BuildStatusTooltip(CombatUnit unit)
+        {
+            if (unit == null || unit.Statuses.Count == 0)
+                return "현재 적용된 상태 효과가 없습니다.";
+
+            var rows = new List<string>(unit.Statuses.Count);
+            for (int i = 0; i < unit.Statuses.Count; i++)
+            {
+                StatusEffectInstance status = unit.Statuses[i];
+                if (status == null) continue;
+                string duration = status.RemainingOwnerActions < 0
+                    ? "지속" : status.RemainingOwnerActions + "회 남음";
+                string stacks = status.Stacks > 1 ? " · " + status.Stacks + "중첩" : string.Empty;
+                rows.Add("<b>" + StatusLabel(status.Type) + "</b>  "
+                    + StatusDescription(status) + "  ·  " + duration + stacks);
+            }
+            return rows.Count == 0 ? "현재 적용된 상태 효과가 없습니다."
+                : string.Join("\n", rows);
+        }
+
+        static string StatusDescription(StatusEffectInstance status)
+        {
+            float percent = Mathf.Abs(status.TotalMagnitude) * 100f;
+            float damage = Mathf.Max(Mathf.Abs(status.TotalFlatValue),
+                Mathf.Abs(status.TotalMagnitude));
+            switch (status.Type)
+            {
+                case StatusEffectType.AttackUp: return "공격력 +" + percent.ToString("0.#") + "%";
+                case StatusEffectType.DamageUp: return "주는 피해 +" + percent.ToString("0.#") + "%";
+                case StatusEffectType.DefenseDown: return "방어력 -" + percent.ToString("0.#") + "%";
+                case StatusEffectType.SpeedDown: return "속도 -" + percent.ToString("0.#") + "%";
+                case StatusEffectType.AttackDown: return "공격력 -" + percent.ToString("0.#") + "%";
+                case StatusEffectType.Burn: return "행동 시작 시 화상 피해 " + damage.ToString("0.#");
+                case StatusEffectType.Shock: return "행동 시작 시 감전 피해 " + damage.ToString("0.#");
+                case StatusEffectType.Bleed: return "행동 시작 시 출혈 피해 " + damage.ToString("0.#");
+                case StatusEffectType.Shield: return "보호막 " + Mathf.Max(0f, status.RuntimeValue).ToString("0.#");
+                default: return status.EffectId;
+            }
         }
 
         static string StatusLabel(StatusEffectType type)

@@ -140,13 +140,40 @@ namespace StarfallAcademy.Lobby
         public static int SelectedStageIndex { get; set; }
         public static string RunId { get; set; }
         public static bool EntryStaminaPaid { get; set; }
+        public static IBattleModeRunContext ModeContext { get; private set; }
+        public static BattleRuleSet Rules => ModeContext?.Rules
+            ?? BattleRuleSet.Standard(SelectedStage);
+        public static BattleMode Mode => ModeContext?.Mode ?? BattleMode.StandardStage;
+        public static bool RewardEligible => ModeContext?.RewardEligible ?? EntryStaminaPaid;
+        public static string ReturnScene => ModeContext?.ReturnScene ?? SceneNames.StageSelect;
 
         public static void BeginRun(StageData stage, int stageIndex, bool staminaPaid)
         {
+            ModeContext = null;
             SelectedStage = stage;
             SelectedStageIndex = stageIndex;
             EntryStaminaPaid = staminaPaid;
             RunId = System.Guid.NewGuid().ToString("N");
+        }
+
+        public static void BeginSpecialRun(IBattleModeRunContext context)
+        {
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            ModeContext = context;
+            SelectedStage = context.Stage;
+            SelectedStageIndex = -1;
+            EntryStaminaPaid = false;
+            RunId = string.IsNullOrWhiteSpace(context.RunId)
+                ? Guid.NewGuid().ToString("N") : context.RunId;
+        }
+
+        public static void Clear()
+        {
+            SelectedStage = null;
+            SelectedStageIndex = -1;
+            RunId = null;
+            EntryStaminaPaid = false;
+            ModeContext = null;
         }
     }
 }

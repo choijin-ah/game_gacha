@@ -7,10 +7,33 @@ namespace StarfallAcademy.Lobby
 {
     public sealed class CharacterArchiveListView
     {
+        enum ArchiveSort
+        {
+            Rarity,
+            CombatPower,
+            Level,
+            Name
+        }
+
+        static readonly BattleElement?[] ElementFilters =
+        {
+            null, BattleElement.Fire, BattleElement.Ice, BattleElement.Lightning,
+            BattleElement.Wind, BattleElement.Light, BattleElement.Dark
+        };
+
         readonly List<CharacterData> characters = new List<CharacterData>();
         readonly Dictionary<CharacterData, Image> selectionMarks = new Dictionary<CharacterData, Image>();
         readonly Action<CharacterData, int> onSelected;
         readonly LobbyUiFactory ui;
+        readonly CharacterDatabase database;
+        RectTransform content;
+        ScrollRect scroll;
+        Text ownershipFilterLabel;
+        Text elementFilterLabel;
+        Text sortLabel;
+        int ownershipFilter;
+        int elementFilterIndex;
+        ArchiveSort sortMode;
         CharacterData selected;
 
         public CharacterArchiveListView(RectTransform workspace, LobbyUiFactory ui, CharacterDatabase database,
@@ -18,7 +41,8 @@ namespace StarfallAcademy.Lobby
         {
             this.ui = ui;
             this.onSelected = onSelected;
-            Build(workspace, database);
+            this.database = database;
+            Build(workspace);
         }
 
         public void SelectFirst()
@@ -26,7 +50,7 @@ namespace StarfallAcademy.Lobby
             Select(characters.Count > 0 ? characters[0] : null);
         }
 
-        void Build(RectTransform workspace, CharacterDatabase database)
+        void Build(RectTransform workspace)
         {
             RectTransform panel = ui.CreateImage("Character List Panel", workspace, UrbanFantasyStyle.Panel,
                 new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-585, -32),
@@ -38,18 +62,31 @@ namespace StarfallAcademy.Lobby
             ui.CreateText("List Index", "I N D E X", panel, 10, FontStyle.Normal, UrbanFantasyStyle.Muted,
                 new Vector2(1, 1), new Vector2(1, 1), new Vector2(-65, -36),
                 new Vector2(110, 22), TextAnchor.MiddleRight);
+            GameObject ownership = ui.CreateStyledButton("Ownership Filter", panel,
+                new Vector2(0, 1), new Vector2(84, -83), new Vector2(142, 34),
+                string.Empty, 11, StarfallButtonStyle.Tab, CycleOwnershipFilter);
+            ownershipFilterLabel = ownership.GetComponentInChildren<Text>();
+            GameObject element = ui.CreateStyledButton("Element Filter", panel,
+                new Vector2(0, 1), new Vector2(250, -83), new Vector2(142, 34),
+                string.Empty, 11, StarfallButtonStyle.Tab, CycleElementFilter);
+            elementFilterLabel = element.GetComponentInChildren<Text>();
+            GameObject sortButton = ui.CreateStyledButton("Archive Sort", panel,
+                new Vector2(0, 1), new Vector2(416, -83), new Vector2(142, 34),
+                string.Empty, 11, StarfallButtonStyle.Tab, CycleSort);
+            sortLabel = sortButton.GetComponentInChildren<Text>();
+            UpdateControlLabels();
             ui.CreateImage("List Divider", panel, UrbanFantasyStyle.Line,
-                new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -64), new Vector2(-30, 1));
+                new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -108), new Vector2(-30, 1));
 
             Image viewportImage = ui.CreateImage("Character List Viewport", panel, Color.clear,
-                new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(0, -34),
-                new Vector2(468, 660), true);
+                new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(0, -56),
+                new Vector2(468, 616), true);
             viewportImage.gameObject.AddComponent<RectMask2D>();
 
             var contentObject = new GameObject("Character List Content", typeof(RectTransform),
                 typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
             contentObject.transform.SetParent(viewportImage.transform, false);
-            RectTransform content = contentObject.GetComponent<RectTransform>();
+            content = contentObject.GetComponent<RectTransform>();
             content.anchorMin = new Vector2(0, 1);
             content.anchorMax = new Vector2(1, 1);
             content.pivot = new Vector2(.5f, 1);
@@ -65,7 +102,7 @@ namespace StarfallAcademy.Lobby
             layout.childForceExpandHeight = false;
             ContentSizeFitter fitter = contentObject.GetComponent<ContentSizeFitter>();
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            ScrollRect scroll = viewportImage.gameObject.AddComponent<ScrollRect>();
+            scroll = viewportImage.gameObject.AddComponent<ScrollRect>();
             scroll.content = content;
             scroll.viewport = viewportImage.rectTransform;
             scroll.horizontal = false;
@@ -73,44 +110,141 @@ namespace StarfallAcademy.Lobby
             scroll.movementType = ScrollRect.MovementType.Elastic;
             scroll.scrollSensitivity = 30;
 
+            Rebuild();
+        }
+
+        void Rebuild()
+        {
+            ClearChildren(content);
+            characters.Clear();
+            selectionMarks.Clear();
             var owned = new List<CharacterData>();
             var locked = new List<CharacterData>();
             if (database != null)
             {
                 foreach (CharacterData character in database.Characters)
                 {
-                    if (character == null) continue;
-                    if (CharacterProgressionService.IsOwned(character)) owned.Add(character);
+                    if (character == null || !MatchesElement(character)) continue;
+                    bool isOwned = CharacterProgressionService.IsOwned(character);
+                    if (ownershipFilter == 1 && !isOwned || ownershipFilter == 2 && isOwned)
+                        continue;
+                    if (isOwned) owned.Add(character);
                     else locked.Add(character);
                 }
             }
+            owned.Sort(CompareCharacters);
+            locked.Sort(CompareCharacters);
 
             if (owned.Count > 0)
             {
                 CreateSection(content, "보유 캐릭터", "O W N E D", owned.Count);
-                foreach (CharacterData character in owned)
+                for (int i = 0; i < owned.Count; i++)
                 {
-                    characters.Add(character);
-                    CreateRow(content, character, characters.Count - 1, true);
+                    characters.Add(owned[i]);
+                    CreateRow(content, owned[i], characters.Count - 1, true);
                 }
             }
             if (locked.Count > 0)
             {
                 CreateSection(content, "미보유 캐릭터", "N O T   O W N E D", locked.Count);
-                foreach (CharacterData character in locked)
+                for (int i = 0; i < locked.Count; i++)
                 {
-                    characters.Add(character);
-                    CreateRow(content, character, characters.Count - 1, false);
+                    characters.Add(locked[i]);
+                    CreateRow(content, locked[i], characters.Count - 1, false);
                 }
             }
 
             if (characters.Count == 0)
-                ui.CreateText("Empty Archive", "등록된 캐릭터가 없습니다.\n\nStarfall > Data > Character Database\n에서 캐릭터를 추가하세요.",
+                ui.CreateText("Empty Archive", "필터 조건에 맞는 캐릭터가 없습니다.\n\n보유 상태 또는 속성 필터를\n변경해 주세요.",
                     content, 16, FontStyle.Normal, UrbanFantasyStyle.Muted,
                     new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(0, -120),
                     new Vector2(420, 170), TextAnchor.MiddleCenter);
             LayoutRebuilder.ForceRebuildLayoutImmediate(content);
             scroll.verticalNormalizedPosition = 1f;
+            if (selected == null || !characters.Contains(selected))
+                selected = characters.Count > 0 ? characters[0] : null;
+            Select(selected);
+        }
+
+        void CycleOwnershipFilter()
+        {
+            ownershipFilter = (ownershipFilter + 1) % 3;
+            UpdateControlLabels();
+            Rebuild();
+        }
+
+        void CycleElementFilter()
+        {
+            elementFilterIndex = (elementFilterIndex + 1) % ElementFilters.Length;
+            UpdateControlLabels();
+            Rebuild();
+        }
+
+        void CycleSort()
+        {
+            sortMode = (ArchiveSort)(((int)sortMode + 1)
+                % Enum.GetValues(typeof(ArchiveSort)).Length);
+            UpdateControlLabels();
+            Rebuild();
+        }
+
+        void UpdateControlLabels()
+        {
+            if (ownershipFilterLabel != null)
+                ownershipFilterLabel.text = ownershipFilter == 1 ? "보유만"
+                    : ownershipFilter == 2 ? "미보유" : "전체";
+            if (elementFilterLabel != null)
+                elementFilterLabel.text = ElementFilters[elementFilterIndex].HasValue
+                    ? ElementLabel(ElementFilters[elementFilterIndex].Value) : "모든 속성";
+            if (sortLabel != null)
+                sortLabel.text = sortMode == ArchiveSort.CombatPower ? "전투력순"
+                    : sortMode == ArchiveSort.Level ? "레벨순"
+                    : sortMode == ArchiveSort.Name ? "이름순" : "희귀도순";
+        }
+
+        bool MatchesElement(CharacterData character)
+        {
+            BattleElement? filter = ElementFilters[elementFilterIndex];
+            return !filter.HasValue || character.Element == filter.Value;
+        }
+
+        int CompareCharacters(CharacterData left, CharacterData right)
+        {
+            int result;
+            switch (sortMode)
+            {
+                case ArchiveSort.CombatPower:
+                    result = CharacterProgressionService.GetCombatPower(right)
+                        .CompareTo(CharacterProgressionService.GetCombatPower(left));
+                    break;
+                case ArchiveSort.Level:
+                    result = CharacterProgressionService.GetLevel(right)
+                        .CompareTo(CharacterProgressionService.GetLevel(left));
+                    break;
+                case ArchiveSort.Name:
+                    result = string.Compare(left.DisplayName, right.DisplayName,
+                        StringComparison.CurrentCultureIgnoreCase);
+                    break;
+                default:
+                    result = right.Rarity.CompareTo(left.Rarity);
+                    break;
+            }
+            return result != 0 ? result : string.Compare(left.Id, right.Id,
+                StringComparison.Ordinal);
+        }
+
+        static string ElementLabel(BattleElement element)
+        {
+            switch (element)
+            {
+                case BattleElement.Fire: return "불";
+                case BattleElement.Ice: return "얼음";
+                case BattleElement.Lightning: return "번개";
+                case BattleElement.Wind: return "바람";
+                case BattleElement.Light: return "빛";
+                case BattleElement.Dark: return "어둠";
+                default: return "자동";
+            }
         }
 
         void CreateSection(RectTransform content, string korean, string english, int count)
@@ -186,6 +320,16 @@ namespace StarfallAcademy.Lobby
                 pair.Value.color = pair.Key == selected ? UrbanFantasyStyle.Highlight : Color.clear;
             int index = character != null ? characters.IndexOf(character) : -1;
             onSelected?.Invoke(character, index);
+        }
+
+        static void ClearChildren(Transform parent)
+        {
+            for (int i = parent.childCount - 1; i >= 0; i--)
+            {
+                GameObject child = parent.GetChild(i).gameObject;
+                child.SetActive(false);
+                UnityEngine.Object.Destroy(child);
+            }
         }
     }
 }

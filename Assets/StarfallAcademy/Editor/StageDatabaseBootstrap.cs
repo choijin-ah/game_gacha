@@ -315,6 +315,9 @@ namespace StarfallAcademy.Lobby.Editor
             SceneClip("characterArchiveBgm", "캐릭터 도감");
             SceneClip("storyArchiveBgm", "스토리 기록실");
             SceneClip("stageSelectBgm", "스테이지 선택");
+            SceneClip("weeklyBossMenuBgm", "주간 보스 메뉴");
+            SceneClip("challengeTowerBgm", "도전의 탑");
+            SceneClip("mailInboxBgm", "우편함 (선택)");
             SceneClip("defaultBattleBgm", "기본 전투");
             EditorGUILayout.Space(4);
             EditorGUILayout.PropertyField(settingsObject.FindProperty("musicVolume"), new GUIContent("BGM 기본 볼륨"));

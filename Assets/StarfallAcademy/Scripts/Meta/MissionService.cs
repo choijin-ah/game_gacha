@@ -89,7 +89,7 @@ namespace StarfallAcademy.Lobby
         long lastForwardDayChangeTimestamp;
 
         public static MissionService Default { get; } = new MissionService(
-            PlayerPrefsMetaStorage.Shared, SystemUtcClock.Shared, RewardService.Default);
+            PlayerPrefsMetaStorage.Shared, ContentUtcClock.Shared, RewardService.Default);
 
         public MissionService(IMetaStorage storage, IUtcClock clock, RewardService rewardService,
             IEnumerable<DailyMissionDefinition> definitions = null)
@@ -151,6 +151,20 @@ namespace StarfallAcademy.Lobby
                     if (ReadProgress(definitions[i]).CanClaim) return true;
                 }
                 return false;
+            }
+        }
+
+        public void Reset()
+        {
+            lock (syncRoot)
+            {
+                storage.DeleteKey(DayKey);
+                for (int i = 0; i < definitions.Count; i++)
+                {
+                    storage.DeleteKey(ProgressKey(definitions[i]));
+                    storage.DeleteKey(ClaimedKey(definitions[i]));
+                }
+                storage.Save();
             }
         }
 

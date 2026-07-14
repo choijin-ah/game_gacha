@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace StarfallAcademy.Lobby
@@ -208,6 +210,11 @@ namespace StarfallAcademy.Lobby
         [SerializeField, Min(0)] int skillMaterialCostGrowth = 10;
         [SerializeField, Min(0)] int combatPowerPerSkillLevel = 250;
 
+        [Header("Awakening")]
+        [SerializeField, Min(1)] int duplicateFragmentReward = 10;
+        [SerializeField] List<AwakeningStageDefinition> awakeningStages =
+            new List<AwakeningStageDefinition>();
+
         [Header("Battle MVP Stats")]
         [SerializeField] BattleElement battleElement = BattleElement.Auto;
         [SerializeField, Min(0), Tooltip("0이면 역할과 전투력으로 계산합니다.")]
@@ -269,6 +276,9 @@ namespace StarfallAcademy.Lobby
         public int SkillBaseMaterialCost => skillBaseMaterialCost;
         public int SkillMaterialCostGrowth => skillMaterialCostGrowth;
         public int CombatPowerPerSkillLevel => combatPowerPerSkillLevel;
+        public int DuplicateFragmentReward => Mathf.Max(1, duplicateFragmentReward);
+        public IReadOnlyList<AwakeningStageDefinition> AwakeningStages => awakeningStages
+            ?? (IReadOnlyList<AwakeningStageDefinition>)Array.Empty<AwakeningStageDefinition>();
         public BattleElement Element => ResolveElement();
         public int MaxHpOverride => Mathf.Max(0, maxHpOverride);
         public int AttackOverride => Mathf.Max(0, attackOverride);
@@ -311,7 +321,7 @@ namespace StarfallAcademy.Lobby
                 default: return null;
             }
             if (clips == null || clips.Length == 0) return null;
-            int first = Random.Range(0, clips.Length);
+            int first = UnityEngine.Random.Range(0, clips.Length);
             for (int i = 0; i < clips.Length; i++)
             {
                 AudioClip clip = clips[(first + i) % clips.Length];
@@ -385,6 +395,9 @@ namespace StarfallAcademy.Lobby
             skillBaseMaterialCost = Mathf.Max(0, skillBaseMaterialCost);
             skillMaterialCostGrowth = Mathf.Max(0, skillMaterialCostGrowth);
             combatPowerPerSkillLevel = Mathf.Max(0, combatPowerPerSkillLevel);
+            duplicateFragmentReward = Mathf.Max(1, duplicateFragmentReward);
+            awakeningStages ??= new List<AwakeningStageDefinition>();
+            for (int i = 0; i < awakeningStages.Count; i++) awakeningStages[i]?.Sanitize();
             battleElement = (BattleElement)Mathf.Clamp((int)battleElement,
                 (int)BattleElement.Auto, (int)BattleElement.Dark);
             maxHpOverride = Mathf.Max(0, maxHpOverride);

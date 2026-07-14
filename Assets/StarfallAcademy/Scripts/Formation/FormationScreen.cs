@@ -10,6 +10,20 @@ namespace StarfallAcademy.Lobby
     [RequireComponent(typeof(RectTransform))]
     public sealed class FormationScreen : MonoBehaviour
     {
+        enum RosterSort
+        {
+            CombatPower,
+            Level,
+            Rarity,
+            Name
+        }
+
+        static readonly CharacterRole?[] RoleFilters =
+        {
+            null, CharacterRole.Striker, CharacterRole.Support, CharacterRole.Tank,
+            CharacterRole.Healer, CharacterRole.Special
+        };
+
         readonly FormationState state = new FormationState();
         readonly Dictionary<CharacterData, Image> selectionMarks = new Dictionary<CharacterData, Image>();
 
@@ -21,6 +35,13 @@ namespace StarfallAcademy.Lobby
         Text emptyLabel;
         Text memberCountLabel;
         Text totalPowerLabel;
+        Text teamSummaryLabel;
+        Text presetIndexLabel;
+        Text roleFilterLabel;
+        Text sortLabel;
+        InputField presetNameInput;
+        int roleFilterIndex;
+        RosterSort rosterSort;
         bool changingScene;
 
         void Awake()
@@ -71,6 +92,7 @@ namespace StarfallAcademy.Lobby
             toast.Initialize(safeRoot, ui);
             database = Resources.Load<CharacterDatabase>("Data/CharacterDatabase");
             state.Load(database);
+            UpdatePresetControls();
             RebuildRoster();
             RebuildSlots();
         }
@@ -113,12 +135,85 @@ namespace StarfallAcademy.Lobby
             ui.CreateText("Scene Label", "F O R M A T I O N", workspace, 11, FontStyle.Normal,
                 UrbanFantasyStyle.Muted,
                 new Vector2(1, 1), new Vector2(1, 1), new Vector2(-104, -36), new Vector2(150, 24), TextAnchor.MiddleRight);
+            BuildPresetControls(workspace);
             GameObject clear = ui.CreateButton("Clear Formation", workspace, new Vector2(1, 0), new Vector2(-390, 46),
                 new Vector2(190, 58), "편성 초기화", 17, UrbanFantasyStyle.PanelStrong, ClearFormation);
             GameObject save = ui.CreateButton("Save Formation", workspace, new Vector2(1, 0), new Vector2(-170, 46),
                 new Vector2(220, 58), "저장하고 로비로", 18, new Color(.17f, .17f, .20f, .98f), SaveAndReturn);
             UrbanFantasyStyle.AddBorder(ui, clear.GetComponent<RectTransform>());
             UrbanFantasyStyle.AddBorder(ui, save.GetComponent<RectTransform>(), UrbanFantasyStyle.StrongLine);
+        }
+
+        void BuildPresetControls(RectTransform workspace)
+        {
+            GameObject previous = ui.CreateButton("Previous Preset", workspace, new Vector2(1, 1),
+                new Vector2(-570, -46), new Vector2(42, 38), "‹", 22,
+                UrbanFantasyStyle.PanelStrong, () => SwitchPreset(-1));
+            GameObject next = ui.CreateButton("Next Preset", workspace, new Vector2(1, 1),
+                new Vector2(-210, -46), new Vector2(42, 38), "›", 22,
+                UrbanFantasyStyle.PanelStrong, () => SwitchPreset(1));
+            UrbanFantasyStyle.AddBorder(ui, previous.GetComponent<RectTransform>());
+            UrbanFantasyStyle.AddBorder(ui, next.GetComponent<RectTransform>());
+            presetIndexLabel = ui.CreateText("Preset Index", "PRESET 1", workspace, 10,
+                FontStyle.Bold, UrbanFantasyStyle.Muted, new Vector2(1, 1), new Vector2(1, 1),
+                new Vector2(-390, -21), new Vector2(170, 20), TextAnchor.MiddleCenter);
+
+            Image field = ui.CreateImage("Preset Name Field", workspace, UrbanFantasyStyle.PanelStrong,
+                new Vector2(1, 1), new Vector2(1, 1), new Vector2(-390, -53), new Vector2(300, 38), true);
+            UrbanFantasyStyle.AddBorder(ui, field.rectTransform);
+            Text value = ui.CreateText("Value", string.Empty, field.transform, 14, FontStyle.Normal,
+                UrbanFantasyStyle.Silver, Vector2.zero, Vector2.one, new Vector2(10, 0),
+                new Vector2(-20, 0), TextAnchor.MiddleLeft);
+            presetNameInput = field.gameObject.AddComponent<InputField>();
+            presetNameInput.targetGraphic = field;
+            presetNameInput.textComponent = value;
+            presetNameInput.lineType = InputField.LineType.SingleLine;
+            presetNameInput.characterLimit = 24;
+            presetNameInput.onEndEdit.AddListener(RenameActivePreset);
+        }
+
+        void SwitchPreset(int direction)
+        {
+            if (database == null) return;
+            FormationPresetService service = FormationPresetService.Default;
+            if (!state.Save())
+            {
+                toast?.Show("편성을 저장하지 못했습니다. 다시 시도해 주세요");
+                return;
+            }
+            int next = (service.ActivePresetIndex + direction + service.PresetCount) % service.PresetCount;
+            if (!service.Select(next))
+            {
+                toast?.Show("프리셋을 전환하지 못했습니다. 다시 시도해 주세요");
+                return;
+            }
+            state.Load(database);
+            UpdatePresetControls();
+            foreach (CharacterData character in selectionMarks.Keys) UpdateSelectionMark(character);
+            RebuildSlots();
+            toast?.Show("프리셋 " + (next + 1) + "을 불러왔습니다");
+        }
+
+        void RenameActivePreset(string value)
+        {
+            FormationPresetService service = FormationPresetService.Default;
+            if (!string.IsNullOrWhiteSpace(value)
+                && !service.Rename(service.ActivePresetIndex, value))
+                toast?.Show("프리셋 이름을 저장하지 못했습니다");
+            UpdatePresetControls();
+        }
+
+        void UpdatePresetControls()
+        {
+            FormationPresetService service = FormationPresetService.Default;
+            int index = service.ActivePresetIndex;
+            if (presetIndexLabel != null)
+                presetIndexLabel.text = "PRESET " + (index + 1) + " / " + service.PresetCount;
+            if (presetNameInput != null)
+            {
+                FormationPreset preset = service.GetActive(database);
+                presetNameInput.SetTextWithoutNotify(preset?.name ?? "파티 " + (index + 1));
+            }
         }
 
         void BuildRosterArea(RectTransform workspace)
@@ -131,11 +226,20 @@ namespace StarfallAcademy.Lobby
             ui.CreateText("Roster Subtitle", "C H A R A C T E R   L I S T", panel, 10, FontStyle.Normal,
                 UrbanFantasyStyle.Muted, new Vector2(1, 1), new Vector2(1, 1),
                 new Vector2(-122, -34), new Vector2(210, 24), TextAnchor.MiddleRight);
+            GameObject roleFilter = ui.CreateStyledButton("Role Filter", panel,
+                new Vector2(0, 1), new Vector2(126, -82), new Vector2(210, 34),
+                string.Empty, 12, StarfallButtonStyle.Tab, CycleRoleFilter);
+            roleFilterLabel = roleFilter.GetComponentInChildren<Text>();
+            GameObject sort = ui.CreateStyledButton("Roster Sort", panel,
+                new Vector2(0, 1), new Vector2(356, -82), new Vector2(210, 34),
+                string.Empty, 12, StarfallButtonStyle.Tab, CycleRosterSort);
+            sortLabel = sort.GetComponentInChildren<Text>();
+            UpdateRosterControlLabels();
             ui.CreateImage("Roster Header Line", panel, UrbanFantasyStyle.Line,
-                new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -62), new Vector2(-30, 1));
+                new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -108), new Vector2(-30, 1));
 
             Image viewportImage = ui.CreateImage("Roster Viewport", panel, new Color(.005f, .005f, .008f, .52f),
-                new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(0, -27), new Vector2(730, 590), true);
+                new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(0, -50), new Vector2(730, 544), true);
             RectTransform viewport = viewportImage.rectTransform;
             viewport.gameObject.AddComponent<RectMask2D>();
 
@@ -184,7 +288,11 @@ namespace StarfallAcademy.Lobby
                 new Vector2(1, 1), new Vector2(1, 1), new Vector2(-64, -34), new Vector2(90, 32), TextAnchor.MiddleRight);
             totalPowerLabel = ui.CreateText("Total Power", "TOTAL POWER  0", panel, 17, FontStyle.Normal,
                 UrbanFantasyStyle.Gold,
-                new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 28), new Vector2(-40, 36), TextAnchor.MiddleRight);
+                new Vector2(.62f, 0), new Vector2(1, 0), new Vector2(-20, 28), new Vector2(-20, 36), TextAnchor.MiddleRight);
+            teamSummaryLabel = ui.CreateText("Team Summary", "편성을 시작하세요", panel, 12,
+                FontStyle.Normal, UrbanFantasyStyle.Muted, new Vector2(0, 0),
+                new Vector2(.64f, 0), new Vector2(20, 28), new Vector2(-20, 36),
+                TextAnchor.MiddleLeft);
             ui.CreateImage("Slots Header Line", panel, UrbanFantasyStyle.Line,
                 new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -62), new Vector2(-30, 1));
 
@@ -201,18 +309,84 @@ namespace StarfallAcademy.Lobby
         {
             ClearChildren(rosterContent);
             selectionMarks.Clear();
-            int count = 0;
+            var visible = new List<CharacterData>();
             if (database != null)
             {
                 foreach (CharacterData character in database.Characters)
                 {
                     if (character == null || !CharacterProgressionService.IsOwned(character)) continue;
-                    CreateCharacterCard(character);
-                    count++;
+                    CharacterRole? role = RoleFilters[roleFilterIndex];
+                    if (role.HasValue && character.Role != role.Value) continue;
+                    visible.Add(character);
                 }
             }
-            emptyLabel.gameObject.SetActive(count == 0);
+            visible.Sort(CompareRosterCharacters);
+            for (int i = 0; i < visible.Count; i++) CreateCharacterCard(visible[i]);
+            emptyLabel.text = roleFilterIndex == 0
+                ? "보유한 캐릭터가 없습니다.\n\n로비의 모집 메뉴에서\n캐릭터를 획득하세요."
+                : "선택한 역할의 보유 캐릭터가 없습니다.\n\n다른 역할 필터를 선택해 주세요.";
+            emptyLabel.gameObject.SetActive(visible.Count == 0);
             LayoutRebuilder.ForceRebuildLayoutImmediate(rosterContent);
+        }
+
+        void CycleRoleFilter()
+        {
+            roleFilterIndex = (roleFilterIndex + 1) % RoleFilters.Length;
+            UpdateRosterControlLabels();
+            RebuildRoster();
+        }
+
+        void CycleRosterSort()
+        {
+            rosterSort = (RosterSort)(((int)rosterSort + 1)
+                % System.Enum.GetValues(typeof(RosterSort)).Length);
+            UpdateRosterControlLabels();
+            RebuildRoster();
+        }
+
+        void UpdateRosterControlLabels()
+        {
+            if (roleFilterLabel != null)
+                roleFilterLabel.text = "역할  ·  " + (RoleFilters[roleFilterIndex].HasValue
+                    ? RoleLabel(RoleFilters[roleFilterIndex].Value) : "전체");
+            if (sortLabel != null)
+                sortLabel.text = "정렬  ·  " + SortLabel(rosterSort);
+        }
+
+        int CompareRosterCharacters(CharacterData left, CharacterData right)
+        {
+            int comparison;
+            switch (rosterSort)
+            {
+                case RosterSort.Level:
+                    comparison = CharacterProgressionService.GetLevel(right)
+                        .CompareTo(CharacterProgressionService.GetLevel(left));
+                    break;
+                case RosterSort.Rarity:
+                    comparison = right.Rarity.CompareTo(left.Rarity);
+                    break;
+                case RosterSort.Name:
+                    comparison = string.Compare(left.DisplayName, right.DisplayName,
+                        System.StringComparison.CurrentCultureIgnoreCase);
+                    break;
+                default:
+                    comparison = CharacterProgressionService.GetCombatPower(right)
+                        .CompareTo(CharacterProgressionService.GetCombatPower(left));
+                    break;
+            }
+            return comparison != 0 ? comparison : string.Compare(left.Id, right.Id,
+                System.StringComparison.Ordinal);
+        }
+
+        static string SortLabel(RosterSort value)
+        {
+            switch (value)
+            {
+                case RosterSort.Level: return "레벨";
+                case RosterSort.Rarity: return "희귀도";
+                case RosterSort.Name: return "이름";
+                default: return "전투력";
+            }
         }
 
         void CreateCharacterCard(CharacterData character)
@@ -269,6 +443,35 @@ namespace StarfallAcademy.Lobby
                 CreateSlot(i, i < state.Count ? state.Members[i] : null);
             memberCountLabel.text = state.Count + " / " + FormationState.MaxMembers;
             totalPowerLabel.text = "TOTAL POWER  " + state.TotalPower.ToString("N0");
+            RefreshTeamSummary();
+        }
+
+        void RefreshTeamSummary()
+        {
+            if (teamSummaryLabel == null) return;
+            if (state.Count == 0)
+            {
+                teamSummaryLabel.text = "편성을 시작하세요";
+                teamSummaryLabel.color = UrbanFantasyStyle.Muted;
+                return;
+            }
+
+            int totalLevel = 0;
+            int healerCount = 0;
+            var elements = new HashSet<BattleElement>();
+            for (int i = 0; i < state.Members.Count; i++)
+            {
+                CharacterData character = state.Members[i];
+                if (character == null) continue;
+                totalLevel += CharacterProgressionService.GetLevel(character);
+                if (character.Role == CharacterRole.Healer) healerCount++;
+                if (character.Element != BattleElement.Auto) elements.Add(character.Element);
+            }
+            int averageLevel = state.Count > 0 ? Mathf.RoundToInt(totalLevel / (float)state.Count) : 0;
+            teamSummaryLabel.text = "평균 LV." + averageLevel + "  ·  속성 " + elements.Count
+                + (healerCount == 0 ? "  ·  회복 역할 없음" : "  ·  역할 균형 양호");
+            teamSummaryLabel.color = healerCount == 0
+                ? UrbanFantasyStyle.Warning : UrbanFantasyStyle.Success;
         }
 
         void CreateSlot(int index, CharacterData character)
@@ -346,17 +549,22 @@ namespace StarfallAcademy.Lobby
         IEnumerator SaveAndReturnRoutine()
         {
             changingScene = true;
-            state.Save();
+            if (!state.Save())
+            {
+                changingScene = false;
+                toast.Show("편성을 저장하지 못했습니다. 다시 시도해 주세요");
+                yield break;
+            }
             toast.Show("편성을 저장했습니다  ·  " + state.Count + "명");
             yield return new WaitForSecondsRealtime(.55f);
-            SceneManager.LoadScene(SceneNavigation.ConsumeFormationReturnScene());
+            StarfallSceneFlow.Load(SceneNavigation.ConsumeFormationReturnScene());
         }
 
         void ReturnToLobby()
         {
             if (changingScene) return;
             changingScene = true;
-            SceneManager.LoadScene(SceneNavigation.ConsumeFormationReturnScene());
+            StarfallSceneFlow.Load(SceneNavigation.ConsumeFormationReturnScene());
         }
 
         static string RoleLabel(CharacterRole role)

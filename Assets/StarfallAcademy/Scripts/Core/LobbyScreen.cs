@@ -13,6 +13,8 @@ namespace StarfallAcademy.Lobby
         LobbyModal modal;
         LobbySettingsPanel settings;
         LobbyMissionPanel missions;
+        AttendancePopup attendance;
+        MailInboxPanel mailInbox;
         float nextLoginRefreshTime;
 
         void Awake()
@@ -87,9 +89,16 @@ namespace StarfallAcademy.Lobby
             missions.Initialize(overlayRoot, ui, toast);
             speech.Initialize(overlayRoot, ui, toast);
 
+            attendance = CreateController<AttendancePopup>("Attendance Controller", overlayRoot);
+            mailInbox = CreateController<MailInboxPanel>("Mail Controller", overlayRoot);
+            attendance.Initialize(overlayRoot, ui, toast);
+            mailInbox.Initialize(overlayRoot, ui, toast);
+
             GothicLobbyView.Build(safeRoot, ui, OpenCharacterArchive, OpenStoryArchive, OpenFormation,
-                OpenGacha, OpenShop, OpenStageSelect, missions.Open, settings.Open, OpenPopup, toast.Show);
+                OpenGacha, OpenShop, OpenStageSelect, OpenWeeklyBoss, OpenChallengeTower,
+                attendance.Open, mailInbox.Open, missions.Open, settings.Open, OpenPopup, toast.Show);
             overlayRoot.SetAsLastSibling();
+            attendance.TryOpenIfClaimable();
         }
 
         void AddAtmosphere(RectTransform root)
@@ -106,13 +115,36 @@ namespace StarfallAcademy.Lobby
         void OpenFormation()
         {
             SceneNavigation.FormationReturnScene = SceneNames.Lobby;
-            SceneManager.LoadScene(SceneNames.Formation);
+            StarfallSceneFlow.Load(SceneNames.Formation);
         }
-        void OpenGacha() => SceneManager.LoadScene(SceneNames.Gacha);
-        void OpenShop() => SceneManager.LoadScene(SceneNames.Shop);
-        void OpenCharacterArchive() => SceneManager.LoadScene(SceneNames.CharacterArchive);
-        void OpenStoryArchive() => SceneManager.LoadScene(SceneNames.StoryArchive);
-        void OpenStageSelect() => SceneManager.LoadScene(SceneNames.StageSelect);
+        void OpenGacha() => StarfallSceneFlow.Load(SceneNames.Gacha);
+        void OpenShop() => StarfallSceneFlow.Load(SceneNames.Shop);
+        void OpenCharacterArchive() => StarfallSceneFlow.Load(SceneNames.CharacterArchive);
+        void OpenStoryArchive() => StarfallSceneFlow.Load(SceneNames.StoryArchive);
+        void OpenStageSelect() => StarfallSceneFlow.Load(SceneNames.StageSelect);
+        void OpenWeeklyBoss()
+        {
+            if (!PlayerProfileService.Default.IsUnlocked(AccountFeature.WeeklyBoss))
+            {
+                OpenPopup("주간 보스", "계정 LV."
+                    + PlayerProfileService.GetRequiredLevel(AccountFeature.WeeklyBoss)
+                    + "에 해금됩니다.");
+                return;
+            }
+            StarfallSceneFlow.Load(SceneNames.WeeklyBoss);
+        }
+
+        void OpenChallengeTower()
+        {
+            if (!PlayerProfileService.Default.IsUnlocked(AccountFeature.ChallengeTower))
+            {
+                OpenPopup("도전의 탑", "계정 LV."
+                    + PlayerProfileService.GetRequiredLevel(AccountFeature.ChallengeTower)
+                    + "에 해금됩니다.");
+                return;
+            }
+            StarfallSceneFlow.Load(SceneNames.ChallengeTower);
+        }
 
         static RectTransform CreateLayer(string name, Transform parent)
         {

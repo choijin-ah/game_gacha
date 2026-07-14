@@ -147,8 +147,10 @@ namespace StarfallAcademy.Lobby
                 ui.CreateText("New Badge", "N E W", resultCard, 11, FontStyle.Bold,
                     new Color(.82f, .12f, .10f, 1f), new Vector2(1, 1), new Vector2(1, 1),
                     new Vector2(-38, -18), new Vector2(62, 22), TextAnchor.MiddleCenter);
-            else if (result.DuplicateSkillMaterials > 0)
-                ui.CreateText("Duplicate Reward", "DUP +" + result.DuplicateSkillMaterials,
+            else if (result.DuplicateFragments > 0 || result.DuplicateSkillMaterials > 0)
+                ui.CreateText("Duplicate Reward", result.DuplicateFragments > 0
+                        ? "FRAG +" + result.DuplicateFragments
+                        : "DUP +" + result.DuplicateSkillMaterials,
                     resultCard, 10, FontStyle.Bold, accent,
                     new Vector2(1, 1), new Vector2(1, 1), new Vector2(-48, -18),
                     new Vector2(86, 22), TextAnchor.MiddleCenter);

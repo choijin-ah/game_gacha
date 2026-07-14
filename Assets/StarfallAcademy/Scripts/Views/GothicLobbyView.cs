@@ -7,26 +7,28 @@ namespace StarfallAcademy.Lobby
     // 레퍼런스 이미지와 같은 좌측 레일 + 우측 대시보드 구조를 한 파일에서 조정합니다.
     public static class GothicLobbyView
     {
-        static readonly Color Panel = new Color(.018f, .018f, .024f, .82f);
-        static readonly Color PanelSoft = new Color(.025f, .025f, .032f, .68f);
-        static readonly Color PanelHover = new Color(.10f, .10f, .12f, .92f);
-        static readonly Color Line = new Color(.78f, .78f, .82f, .34f);
-        static readonly Color Silver = new Color(.84f, .84f, .87f, 1f);
-        static readonly Color Muted = new Color(.78f, .78f, .82f, .62f);
-        static readonly Color Alert = new Color(.78f, .055f, .045f, 1f);
+        static readonly Color Panel = UrbanFantasyStyle.Panel;
+        static readonly Color PanelSoft = UrbanFantasyStyle.PanelSoft;
+        static readonly Color PanelHover = new Color(.10f, .13f, .24f, .94f);
+        static readonly Color Line = UrbanFantasyStyle.Line;
+        static readonly Color Silver = UrbanFantasyStyle.Silver;
+        static readonly Color Muted = UrbanFantasyStyle.Muted;
+        static readonly Color Alert = UrbanFantasyStyle.Alert;
         const float RightCenter = -320f;
         const float RightWidth = 560f;
 
         public static void Build(RectTransform root, LobbyUiFactory ui, Action openCharacterArchive,
             Action openStoryArchive, Action openFormation, Action openGacha, Action openShop,
-            Action openStageSelect, Action openMissions, Action openSettings, Action<string, string> openPopup,
-            Action<string> showToast)
+            Action openStageSelect, Action openWeeklyBoss, Action openChallengeTower,
+            Action openAttendance, Action openMail, Action openMissions, Action openSettings,
+            Action<string, string> openPopup, Action<string> showToast)
         {
             BuildProfile(root, ui, openPopup);
-            BuildCurrencies(root, ui, openGacha, openSettings, openPopup);
+            BuildCurrencies(root, ui, openGacha, openMail, openAttendance, openSettings, openPopup);
             BuildStoryBanner(root, ui, openStoryArchive);
             BuildQuickCards(root, ui, openCharacterArchive, openFormation, openShop, openPopup);
-            BuildBattleArea(root, ui, openStoryArchive, openGacha, openStageSelect, openMissions, openPopup);
+            BuildBattleArea(root, ui, openStoryArchive, openGacha, openStageSelect,
+                openWeeklyBoss, openChallengeTower, openMissions, openPopup);
             BuildSocialButtons(root, ui, openPopup, showToast);
         }
 
@@ -100,25 +102,28 @@ namespace StarfallAcademy.Lobby
         }
 
         static void BuildCurrencies(RectTransform root, LobbyUiFactory ui, Action openGacha,
-            Action openSettings, Action<string, string> openPopup)
+            Action openMail, Action openAttendance, Action openSettings,
+            Action<string, string> openPopup)
         {
-            RectTransform top = ui.CreateImage("Top Utilities", root, new Color(.005f, .005f, .008f, .38f),
-                new Vector2(1, 1), new Vector2(1, 1), new Vector2(-445, -45), new Vector2(810, 66)).rectTransform;
+            RectTransform top = ui.CreateImage("Top Utilities", root, new Color(.01f, .02f, .06f, .58f),
+                new Vector2(1, 1), new Vector2(1, 1), new Vector2(-505, -45), new Vector2(930, 66)).rectTransform;
+            StaminaSnapshot stamina = StaminaService.Default.GetSnapshot();
             string[] values =
             {
+                stamina.Current.ToString("N0") + "/" + stamina.Maximum.ToString("N0"),
                 PlayerWallet.SkillMaterials.ToString("N0"),
                 PlayerWallet.PremiumCurrency.ToString("N0"),
                 PlayerWallet.Credits.ToString("N0")
             };
-            string[] symbols = { "◇", "♦", "●" };
-            string[] titles = { PlayerWallet.SkillMaterialDisplayName,
+            string[] symbols = { "ϟ", "◇", "♦", "●" };
+            string[] titles = { "행동력", PlayerWallet.SkillMaterialDisplayName,
                 PlayerWallet.PremiumCurrencyDisplayName, "크레딧" };
-            float[] x = { -315, -126, 85 };
-            float[] widths = { 176, 176, 210 };
+            float[] x = { -374, -208, -42, 138 };
+            float[] widths = { 150, 150, 150, 184 };
             for (int i = 0; i < values.Length; i++)
             {
                 int index = i;
-                Action action = i == 1
+                Action action = i == 2
                     ? openGacha
                     : () => openPopup(titles[index], "보유 " + titles[index] + "  " + values[index]);
                 GameObject currency = ui.CreateButton("Currency " + titles[i], top, new Vector2(.5f, .5f),
@@ -128,11 +133,11 @@ namespace StarfallAcademy.Lobby
                 AddBorder(ui, currency.GetComponent<RectTransform>());
             }
 
-            CreateUtilityButton(ui, top, 238, LobbyIcon.Mail, "우편함",
-                () => openPopup("우편함", "우편함 메뉴입니다."), true);
-            CreateUtilityButton(ui, top, 306, LobbyIcon.Schedule, "출석 달력",
-                () => openPopup("출석 달력", "출석 달력 메뉴입니다."), false);
-            CreateUtilityButton(ui, top, 374, LobbyIcon.Settings, "환경 설정", openSettings, false);
+            CreateUtilityButton(ui, top, 292, LobbyIcon.Mail, "우편함",
+                openMail, MailService.Default.GetUnreadCount() > 0);
+            CreateUtilityButton(ui, top, 354, LobbyIcon.Schedule, "출석 달력",
+                openAttendance, HasClaimableAttendance());
+            CreateUtilityButton(ui, top, 416, LobbyIcon.Settings, "환경 설정", openSettings, false);
         }
 
         static void CreateUtilityButton(LobbyUiFactory ui, RectTransform parent, float x, LobbyIcon icon,
@@ -189,7 +194,8 @@ namespace StarfallAcademy.Lobby
         }
 
         static void BuildBattleArea(RectTransform root, LobbyUiFactory ui, Action openStoryArchive,
-            Action openGacha, Action openStageSelect, Action openMissions,
+            Action openGacha, Action openStageSelect, Action openWeeklyBoss,
+            Action openChallengeTower, Action openMissions,
             Action<string, string> openPopup)
         {
             GameObject battle = ui.CreateButton("Battle", root, new Vector2(1, 0),
@@ -206,6 +212,14 @@ namespace StarfallAcademy.Lobby
                 new Vector2(1, .5f), new Vector2(1, .5f), new Vector2(-93, 0), new Vector2(130, 110), TextAnchor.MiddleCenter);
             ui.CreateImage("Battle Divider", battleRect, Line, new Vector2(0, 0), new Vector2(.43f, 0),
                 new Vector2(38, 20), new Vector2(-70, 1));
+            GameObject weekly = ui.CreateButton("Weekly Boss", battleRect, new Vector2(1, .5f),
+                new Vector2(-164, 27), new Vector2(190, 40), "주간 보스  ·  LV.15", 13,
+                PanelHover, openWeeklyBoss, TextAnchor.MiddleCenter, false);
+            GameObject tower = ui.CreateButton("Challenge Tower", battleRect, new Vector2(1, .5f),
+                new Vector2(-164, -27), new Vector2(190, 40), "도전의 탑  ·  LV.20", 13,
+                PanelHover, openChallengeTower, TextAnchor.MiddleCenter, false);
+            AddBorder(ui, weekly.GetComponent<RectTransform>());
+            AddBorder(ui, tower.GetComponent<RectTransform>());
 
             string[] korean = { "기록실", "모집", "업적" };
             string[] english = { "ARCHIVE", "RECRUIT", "ACHIEVEMENT" };
@@ -276,6 +290,13 @@ namespace StarfallAcademy.Lobby
         {
             Image dot = ui.CreateImage("Notification", parent, Alert, anchor, anchor, position, new Vector2(13, 13));
             dot.raycastTarget = false;
+        }
+
+        static bool HasClaimableAttendance()
+        {
+            AttendanceCampaignDatabase database =
+                Resources.Load<AttendanceCampaignDatabase>("Data/AttendanceCampaignDatabase");
+            return database != null && AttendanceService.Default.HasClaimableReward(database);
         }
     }
 }

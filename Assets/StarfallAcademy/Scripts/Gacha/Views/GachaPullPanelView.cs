@@ -42,10 +42,10 @@ namespace StarfallAcademy.Lobby
                 new Vector2(0, -205), new Vector2(-38, 2));
 
             GameObject single = ui.CreateButton("Single Pull", panel, new Vector2(0, 0), new Vector2(155, 78),
-                new Vector2(260, 112), "1회 모집\n♦  " + (config != null ? config.SinglePullCost.ToString("N0") : "-"),
+                new Vector2(260, 112), "1회 모집\n" + CostLabel(1),
                 18, GachaGothicStyle.PanelStrong, () => onPull(1), TextAnchor.MiddleCenter, false);
             GameObject ten = ui.CreateButton("Ten Pull", panel, new Vector2(1, 0), new Vector2(-155, 78),
-                new Vector2(260, 112), "10회 모집\n♦  " + (config != null ? config.TenPullCost.ToString("N0") : "-"),
+                new Vector2(260, 112), "10회 모집\n" + CostLabel(10),
                 18, new Color(.18f, .18f, .21f, .98f), () => onPull(10), TextAnchor.MiddleCenter, false);
             GachaGothicStyle.AddBorder(ui, single.GetComponent<RectTransform>());
             GachaGothicStyle.AddBorder(ui, ten.GetComponent<RectTransform>(), new Color(.92f, .92f, .95f, .56f));
@@ -62,28 +62,43 @@ namespace StarfallAcademy.Lobby
 
         public void Refresh()
         {
-            selectedNameLabel.text = selected != null ? selected.DisplayName + "  PICK UP" : "픽업을 선택하세요";
+            selectedNameLabel.text = service.RequiresPickupSelection
+                ? selected != null ? selected.DisplayName + "  PICK UP" : "픽업을 선택하세요"
+                : "STANDARD POOL";
             if (config != null)
             {
-                probabilityLabel.text = "5★ 기본 " + config.TopRarityRatePercent.ToString("0.###") + "%  ·  선택 픽업 " +
-                    config.FeaturedSharePercent.ToString("0.##") + "%  (절대 " +
-                    config.EffectiveSelectedPickupRatePercent.ToString("0.###") + "%)";
+                probabilityLabel.text = "5★ 기본 " + config.TopRarityRatePercent.ToString("0.###") + "%";
+                if (service.RequiresPickupSelection)
+                    probabilityLabel.text += "  ·  선택 픽업 "
+                        + config.FeaturedSharePercent.ToString("0.##") + "%  (절대 "
+                        + config.EffectiveSelectedPickupRatePercent.ToString("0.###") + "%)";
                 probabilityLabel.text += "  ·  4★ "
                     + config.FourStarRatePercent.ToString("0.###") + "%  ·  3★ "
                     + config.ThreeStarRatePercent.ToString("0.###") + "%";
                 pityLabel.text = "천장까지 " + Mathf.Max(0, config.HardPity - service.PityCount) + "회" +
-                    (service.FeaturedGuaranteed ? "  ·  다음 5★ 픽업 확정" : string.Empty);
+                    (service.RequiresPickupSelection && service.FeaturedGuaranteed
+                        ? "  ·  다음 5★ 픽업 확정" : string.Empty);
             }
             else
             {
                 probabilityLabel.text = "GachaConfig가 없습니다";
                 pityLabel.text = string.Empty;
             }
-            currencyLabel.text = "보유 " + PlayerWallet.PremiumCurrencyDisplayName + "  ♦  " +
-                service.Currency.ToString("N0");
-            bool canPull = selected != null && config != null;
+            currencyLabel.text = service.UsesTickets
+                ? "보유 " + (config as GachaBannerData)?.TicketItemId + "  ×  "
+                    + service.TicketBalance.ToString("N0")
+                : "보유 " + PlayerWallet.PremiumCurrencyDisplayName + "  ♦  "
+                    + service.Currency.ToString("N0");
+            bool canPull = config != null && (!service.RequiresPickupSelection || selected != null);
             singleButton.interactable = canPull;
             tenButton.interactable = canPull;
+        }
+
+        string CostLabel(int count)
+        {
+            if (config == null) return "-";
+            return service.UsesTickets ? "TICKET × " + count
+                : "♦  " + (count == 1 ? config.SinglePullCost : config.TenPullCost).ToString("N0");
         }
     }
 }

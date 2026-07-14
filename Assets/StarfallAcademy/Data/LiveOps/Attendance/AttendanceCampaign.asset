@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea79af7f31754f6b861c194864509d25, type: 3}
+  m_Name: AttendanceCampaign
+  m_EditorClassIdentifier: Assembly-CSharp::StarfallAcademy.Lobby.AttendanceCampaignData
+  campaignId: attendance_welcome_7day
+  displayName: 7일 출석 캠페인
+  schedule:
+    startUtc:
+    endUtc:
+  cycleMode: 1
+  days:
+  - dayNumber: 1
+    reward:
+      currencyReward: {credits: 1000, skillMaterials: 0, accountExperience: 0, premiumCurrency: 0}
+      itemRewards: []
+  - dayNumber: 2
+    reward:
+      currencyReward: {credits: 2000, skillMaterials: 0, accountExperience: 0, premiumCurrency: 0}
+      itemRewards: []
+  - dayNumber: 3
+    reward:
+      currencyReward: {credits: 3000, skillMaterials: 0, accountExperience: 0, premiumCurrency: 0}
+      itemRewards: []
+  - dayNumber: 4
+    reward:
+      currencyReward: {credits: 4000, skillMaterials: 0, accountExperience: 0, premiumCurrency: 0}
+      itemRewards: []
+  - dayNumber: 5
+    reward:
+      currencyReward: {credits: 5000, skillMaterials: 0, accountExperience: 0, premiumCurrency: 0}
+      itemRewards: []
+  - dayNumber: 6
+    reward:
+      currencyReward: {credits: 6000, skillMaterials: 0, accountExperience: 0, premiumCurrency: 0}
+      itemRewards: []
+  - dayNumber: 7
+    reward:
+      currencyReward: {credits: 7000, skillMaterials: 0, accountExperience: 0, premiumCurrency: 0}
+      itemRewards: []

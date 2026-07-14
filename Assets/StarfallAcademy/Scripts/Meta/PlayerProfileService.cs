@@ -105,6 +105,13 @@ namespace StarfallAcademy.Lobby
             return result;
         }
 
+        public void Reset()
+        {
+            storage.DeleteKey(LevelKey);
+            storage.DeleteKey(ExperienceKey);
+            storage.Save();
+        }
+
         public AccountExperienceResult AddExperience(int amount)
         {
             return ApplyExperience(amount, true);

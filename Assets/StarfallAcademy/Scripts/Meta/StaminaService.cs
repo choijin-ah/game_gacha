@@ -37,7 +37,7 @@ namespace StarfallAcademy.Lobby
         readonly Func<int, int> maximumResolver;
 
         public static StaminaService Default { get; } = new StaminaService(
-            PlayerPrefsMetaStorage.Shared, PlayerProfileService.Default, SystemUtcClock.Shared);
+            PlayerPrefsMetaStorage.Shared, PlayerProfileService.Default, ContentUtcClock.Shared);
 
         public StaminaService(IMetaStorage storage, PlayerProfileService profile,
             IUtcClock clock, Func<int, int> maximumResolver = null)

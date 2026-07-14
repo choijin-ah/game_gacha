@@ -10,5 +10,7 @@ namespace StarfallAcademy.Lobby
         public const string StoryArchive = "StoryArchive";
         public const string StageSelect = "StageSelect";
         public const string TurnBattle = "TurnBattle";
+        public const string WeeklyBoss = "WeeklyBoss";
+        public const string ChallengeTower = "ChallengeTower";
     }
 }

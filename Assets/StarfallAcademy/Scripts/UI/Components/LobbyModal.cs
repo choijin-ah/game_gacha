@@ -1,4 +1,5 @@
 using System.Collections;
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -12,6 +13,12 @@ namespace StarfallAcademy.Lobby
         CanvasGroup group;
         Text titleLabel;
         Text bodyLabel;
+        GameObject confirmButton;
+        GameObject cancelButton;
+        Text confirmLabel;
+        Text cancelLabel;
+        Action confirmAction;
+        Action cancelAction;
         Coroutine animation;
 
         public void Initialize(RectTransform parent, LobbyUiFactory ui)
@@ -34,7 +41,7 @@ namespace StarfallAcademy.Lobby
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, true);
             Button backdrop = dim.gameObject.AddComponent<Button>();
             backdrop.transition = Selectable.Transition.None;
-            backdrop.onClick.AddListener(Close);
+            backdrop.onClick.AddListener(Cancel);
 
             Image cardImage = ui.CreateImage("Popup Card", layer.transform, UrbanFantasyStyle.PanelStrong,
                 new Vector2(.5f, .5f), new Vector2(.5f, .5f), Vector2.zero, new Vector2(650, 470), true);
@@ -50,36 +57,80 @@ namespace StarfallAcademy.Lobby
             ui.CreateImage("Divider", card, UrbanFantasyStyle.Line, new Vector2(0, 1), new Vector2(1, 1),
                 new Vector2(0, -126), new Vector2(-76, 2));
             bodyLabel = ui.CreateText("Popup Body", string.Empty, card, 20, FontStyle.Normal,
-                new Color(.88f, .88f, .91f, .78f),
+                new Color(UrbanFantasyStyle.Silver.r, UrbanFantasyStyle.Silver.g,
+                    UrbanFantasyStyle.Silver.b, .82f),
                 new Vector2(0, 0), new Vector2(1, 1), new Vector2(0, -22), new Vector2(-76, -190), TextAnchor.UpperLeft);
             bodyLabel.lineSpacing = 1.25f;
             ui.CreateButton("Close Popup", card, new Vector2(1, 1), new Vector2(-32, -32), new Vector2(46, 46),
-                "×", 27, UrbanFantasyStyle.PanelSoft, Close);
-            GameObject confirm = ui.CreateButton("Confirm Popup", card, new Vector2(.5f, 0), new Vector2(0, 42),
-                new Vector2(220, 58), "확인", 18, new Color(.16f, .16f, .19f, .98f), Close);
-            UrbanFantasyStyle.AddBorder(ui, confirm.GetComponent<RectTransform>(), UrbanFantasyStyle.StrongLine);
+                "×", 27, UrbanFantasyStyle.PanelSoft, Cancel);
+            confirmButton = ui.CreateStyledButton("Confirm Popup", card, new Vector2(.5f, 0),
+                new Vector2(0, 42), new Vector2(220, 58), "확인", 18,
+                StarfallButtonStyle.Primary, Confirm);
+            confirmLabel = confirmButton.GetComponentInChildren<Text>();
+            cancelButton = ui.CreateStyledButton("Cancel Popup", card, new Vector2(.5f, 0),
+                new Vector2(-130, 42), new Vector2(220, 58), "취소", 18,
+                StarfallButtonStyle.Secondary, Cancel);
+            cancelLabel = cancelButton.GetComponentInChildren<Text>();
+            cancelButton.SetActive(false);
             layer.SetActive(false);
         }
 
         public void Open(string title, string body)
         {
+            Open(title, body, "확인", null, null, null);
+        }
+
+        public void Open(string title, string body, string confirmText, Action onConfirm,
+            string cancelText = "취소", Action onCancel = null)
+        {
             if (animation != null) StopCoroutine(animation);
             layer.transform.SetAsLastSibling();
             titleLabel.text = title;
             bodyLabel.text = body;
+            confirmAction = onConfirm;
+            cancelAction = onCancel;
+            confirmLabel.text = string.IsNullOrWhiteSpace(confirmText) ? "확인" : confirmText;
+            bool hasCancel = !string.IsNullOrWhiteSpace(cancelText);
+            cancelButton.SetActive(hasCancel);
+            cancelLabel.text = hasCancel ? cancelText : string.Empty;
+            confirmButton.GetComponent<RectTransform>().anchoredPosition =
+                hasCancel ? new Vector2(130, 42) : new Vector2(0, 42);
             layer.SetActive(true);
             group.interactable = true;
             group.blocksRaycasts = true;
             animation = StartCoroutine(ShowAnimation());
         }
 
+        void Confirm()
+        {
+            Action callback = confirmAction;
+            ClearActions();
+            Close();
+            callback?.Invoke();
+        }
+
+        void Cancel()
+        {
+            Action callback = cancelAction;
+            ClearActions();
+            Close();
+            callback?.Invoke();
+        }
+
         public void Close()
         {
             if (!layer.activeSelf) return;
+            ClearActions();
             if (animation != null) StopCoroutine(animation);
             group.interactable = false;
             group.blocksRaycasts = false;
             animation = StartCoroutine(HideAnimation());
+        }
+
+        void ClearActions()
+        {
+            confirmAction = null;
+            cancelAction = null;
         }
 
         IEnumerator ShowAnimation()

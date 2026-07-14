@@ -76,6 +76,8 @@ namespace StarfallAcademy.Lobby
         public static int GetCombatPowerBonus(CharacterData character)
         {
             if (!IsUnlocked) return 0;
+            if (character != null && EquipmentInventoryService.Default.HasEquippedItems(character))
+                return EquipmentInventoryService.Default.GetCombatPowerBonus(character);
             long total = 0;
             for (int i = 0; i < SlotOrder.Length; i++)
                 total += GetSlotCombatPowerBonus(character, SlotOrder[i]);
@@ -179,6 +181,18 @@ namespace StarfallAcademy.Lobby
             message = slotName + "  LV. " + (level + 1);
             return true;
         }
+
+        public static void ResetLegacy(CharacterData character)
+        {
+            if (character == null) return;
+            MetaPlayerPrefsTransaction.RecoverPending();
+            for (int i = 0; i < SlotOrder.Length; i++)
+                PlayerPrefs.DeleteKey(LevelKey(character, SlotOrder[i]));
+            PlayerPrefs.Save();
+        }
+
+        public static string GetLegacyStorageKey(CharacterData character, EquipmentSlot slot) =>
+            character == null || !IsValidSlot(slot) ? string.Empty : LevelKey(character, slot);
 
         static string LevelKey(CharacterData character, EquipmentSlot slot) =>
             LevelKeyPrefix + character.Id + "." + slot;

@@ -36,7 +36,10 @@ namespace StarfallAcademy.Lobby
         {
             members.Clear();
             if (database == null) return;
-            string saved = PlayerPrefs.GetString(PlayerPrefsKey, string.Empty);
+            FormationPreset preset = FormationPresetService.Default.GetActive(database);
+            string saved = preset != null && preset.characterIds != null
+                ? string.Join("|", preset.characterIds)
+                : PlayerPrefs.GetString(PlayerPrefsKey, string.Empty);
             if (string.IsNullOrWhiteSpace(saved)) return;
 
             foreach (string id in saved.Split('|'))
@@ -62,13 +65,10 @@ namespace StarfallAcademy.Lobby
 
         public void Clear() => members.Clear();
 
-        public void Save()
+        public bool Save()
         {
-            var ids = new List<string>();
-            foreach (CharacterData character in members)
-                if (character != null) ids.Add(character.Id);
-            PlayerPrefs.SetString(PlayerPrefsKey, string.Join("|", ids));
-            PlayerPrefs.Save();
+            FormationPresetService service = FormationPresetService.Default;
+            return service.Save(service.ActivePresetIndex, members);
         }
     }
 }

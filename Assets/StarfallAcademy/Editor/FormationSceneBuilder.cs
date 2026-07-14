@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -75,33 +74,4 @@ namespace StarfallAcademy.Lobby.Editor
         }
     }
 
-    static class SceneBuildSettingsUtility
-    {
-        internal static void Update()
-        {
-            string[] corePaths =
-            {
-                LobbySceneBuilder.ScenePath,
-                FormationSceneBuilder.ScenePath,
-                GachaSceneBuilder.ScenePath,
-                ShopSceneBuilder.ScenePath,
-                CharacterArchiveSceneBuilder.ScenePath,
-                "Assets/StarfallAcademy/Scenes/StoryArchive.unity",
-                StageSelectSceneBuilder.ScenePath,
-                TurnBattleSceneBuilder.ScenePath
-            };
-            var scenes = new List<EditorBuildSettingsScene>();
-            foreach (string path in corePaths)
-                if (File.Exists(path)) scenes.Add(new EditorBuildSettingsScene(path, true));
-
-            foreach (EditorBuildSettingsScene existing in EditorBuildSettings.scenes)
-            {
-                bool isCore = false;
-                foreach (string corePath in corePaths)
-                    if (existing.path == corePath) { isCore = true; break; }
-                if (!isCore && File.Exists(existing.path)) scenes.Add(existing);
-            }
-            EditorBuildSettings.scenes = scenes.ToArray();
-        }
-    }
 }

@@ -185,6 +185,9 @@ namespace StarfallAcademy.Lobby
         [SerializeField, Min(0)] int firstClearPremiumCurrency = 30;
         [SerializeField, Min(0)] int rewardCredits = 5000;
         [SerializeField, Min(0)] int rewardSkillMaterials = 10;
+        [SerializeField] RewardPackage firstClearRewardPackage = new RewardPackage();
+        [SerializeField] RewardPackage repeatClearRewardPackage = new RewardPackage();
+        [SerializeField] EquipmentDropTable equipmentDropTable;
         [SerializeField, Min(1)] int threeStarTurnLimit = 18;
         [SerializeField] bool sweepEnabled = true;
 
@@ -208,6 +211,13 @@ namespace StarfallAcademy.Lobby
         public int FirstClearPremiumCurrency => Mathf.Max(0, firstClearPremiumCurrency);
         public int RewardCredits => Mathf.Max(0, rewardCredits);
         public int RewardSkillMaterials => Mathf.Max(0, rewardSkillMaterials);
+        public RewardPackage FirstClearRewardPackage => firstClearRewardPackage;
+        public RewardPackage RepeatClearRewardPackage => repeatClearRewardPackage;
+        public EquipmentDropTable EquipmentDropTable => equipmentDropTable;
+        public bool HasFirstClearRewardPackage => firstClearRewardPackage != null
+            && !firstClearRewardPackage.IsEmpty;
+        public bool HasRepeatClearRewardPackage => repeatClearRewardPackage != null
+            && !repeatClearRewardPackage.IsEmpty;
         public int ThreeStarTurnLimit => Mathf.Max(1, threeStarTurnLimit);
         public bool SweepEnabled => sweepEnabled;
         public EnemyArchetype EnemyArchetype => ResolveEnemyArchetype();

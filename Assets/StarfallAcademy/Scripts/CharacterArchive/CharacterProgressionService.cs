@@ -71,9 +71,27 @@ namespace StarfallAcademy.Lobby
             if (character == null) return 0;
             int levelPower = Mathf.Max(0, GetLevel(character) - character.Level) * character.CombatPowerPerLevel;
             int skillPower = Mathf.Max(0, GetSkillLevel(character) - 1) * character.CombatPowerPerSkillLevel;
-            long total = (long)character.CombatPower + levelPower + skillPower +
-                EquipmentService.GetCombatPowerBonus(character);
+            long total = (long)character.CombatPower + levelPower + skillPower
+                + EquipmentService.GetCombatPowerBonus(character)
+                + CharacterAwakeningService.Default.GetCombatPowerBonus(character);
             return total >= int.MaxValue ? int.MaxValue : (int)total;
+        }
+
+        public static void Reset(CharacterData character)
+        {
+            if (character == null) return;
+            MetaPlayerPrefsTransaction.RecoverPending();
+            PlayerPrefs.DeleteKey(OwnedPrefix + character.Id);
+            PlayerPrefs.DeleteKey(LevelPrefix + character.Id);
+            PlayerPrefs.DeleteKey(SkillLevelPrefix + character.Id);
+            CharacterAwakeningService.Default.Reset(character);
+            PlayerPrefs.Save();
+        }
+
+        public static void ResetAll(CharacterDatabase database)
+        {
+            if (database == null) return;
+            for (int i = 0; i < database.Characters.Count; i++) Reset(database.Characters[i]);
         }
 
         public static bool TryLevelUp(CharacterData character, out string message)

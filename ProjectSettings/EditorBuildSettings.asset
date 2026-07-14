@@ -29,6 +29,12 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/StarfallAcademy/Scenes/TurnBattle.unity
     guid: 63b75b2e6a8f88e4f853c10c09aeb8f4
+  - enabled: 1
+    path: Assets/StarfallAcademy/Scenes/WeeklyBoss.unity
+    guid: 9f3a0d71b0cf4c15b41ebfa3b7da9221
+  - enabled: 1
+    path: Assets/StarfallAcademy/Scenes/ChallengeTower.unity
+    guid: a46db9e8c9fe4dd7a6e12efad1c50372
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}

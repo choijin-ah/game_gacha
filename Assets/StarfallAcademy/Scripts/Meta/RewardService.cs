@@ -49,7 +49,6 @@ namespace StarfallAcademy.Lobby
         const string CreditsKey = "StarfallAcademy.Credits";
         const string SkillMaterialsKey = "StarfallAcademy.SkillMaterials";
         const string PremiumCurrencyKey = "StarfallAcademy.PremiumCurrency";
-        const string ProcessedTransactionPrefix = "StarfallAcademy.Meta.Reward.Transaction.";
 
         static readonly object GlobalSyncRoot = new object();
         readonly IMetaStorage storage;
@@ -94,7 +93,16 @@ namespace StarfallAcademy.Lobby
             {
                 string transactionKey = GetTransactionKey(normalizedId);
                 if (storage.GetInt(transactionKey, 0) == 1)
+                {
+                    // Backfill the manifest for transactions created before manifest tracking.
+                    try
+                    {
+                        PlayerDataKeyManifest.TrackRewardTransactionKey(storage, transactionKey);
+                        storage.Save();
+                    }
+                    catch (Exception) { }
                     return Result(RewardGrantStatus.DuplicateTransaction, reward);
+                }
 
                 bool hadCredits = storage.HasKey(CreditsKey);
                 bool hadMaterials = storage.HasKey(SkillMaterialsKey);
@@ -120,6 +128,7 @@ namespace StarfallAcademy.Lobby
                         : UnchangedExperienceResult();
 
                     beforeCommit?.Invoke();
+                    PlayerDataKeyManifest.TrackRewardTransactionKey(storage, transactionKey);
                     storage.SetInt(transactionKey, 1);
                     storage.Save();
                     return new RewardGrantResult(RewardGrantStatus.Granted, reward,
@@ -134,7 +143,11 @@ namespace StarfallAcademy.Lobby
                         RestoreInt(PremiumCurrencyKey, hadPremium, previousPremium);
                         profile.RestoreStateDeferred(previousLevel, previousExperience);
                         RestoreInt(transactionKey, hadTransaction, previousTransaction);
-                        rollbackParticipant?.Invoke();
+                        try { rollbackParticipant?.Invoke(); }
+                        catch (Exception)
+                        {
+                            // Continue to persist every snapshot that was restored successfully.
+                        }
                         storage.Save();
                     }
                     catch (Exception)
@@ -193,7 +206,7 @@ namespace StarfallAcademy.Lobby
                 byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(transactionId));
                 var builder = new StringBuilder(hash.Length * 2);
                 for (int i = 0; i < hash.Length; i++) builder.Append(hash[i].ToString("x2"));
-                return ProcessedTransactionPrefix + builder;
+                return PlayerDataKeyManifest.RewardTransactionKeyPrefix + builder;
             }
         }
     }

@@ -68,22 +68,29 @@ namespace StarfallAcademy.Lobby
         {
             const string firstKey = "StarfallAcademy.Diagnostics.Transaction.First";
             const string secondKey = "StarfallAcademy.Diagnostics.Transaction.Second";
+            const string textKey = "StarfallAcademy.Diagnostics.Transaction.Text";
             MetaPlayerPrefsTransaction.RecoverPending();
             bool hadFirst = PlayerPrefs.HasKey(firstKey);
             bool hadSecond = PlayerPrefs.HasKey(secondKey);
+            bool hadText = PlayerPrefs.HasKey(textKey);
             int previousFirst = PlayerPrefs.GetInt(firstKey, 0);
             int previousSecond = PlayerPrefs.GetInt(secondKey, 0);
+            string previousText = PlayerPrefs.GetString(textKey, string.Empty);
             try
             {
                 bool committed = MetaPlayerPrefsTransaction.Commit(new[]
                 {
                     new MetaIntWrite(firstKey, 314159),
                     new MetaIntWrite(secondKey, 271828)
+                }, new[]
+                {
+                    new MetaStringWrite(textKey, "recoverable-history")
                 });
                 if (!committed || PlayerPrefs.GetInt(firstKey, 0) != 314159
-                    || PlayerPrefs.GetInt(secondKey, 0) != 271828)
+                    || PlayerPrefs.GetInt(secondKey, 0) != 271828
+                    || PlayerPrefs.GetString(textKey, string.Empty) != "recoverable-history")
                 {
-                    error = "The isolated PlayerPrefs journal transaction did not commit both values.";
+                    error = "The isolated PlayerPrefs journal transaction did not commit all mixed values.";
                     return false;
                 }
                 error = string.Empty;
@@ -100,6 +107,8 @@ namespace StarfallAcademy.Lobby
                 else PlayerPrefs.DeleteKey(firstKey);
                 if (hadSecond) PlayerPrefs.SetInt(secondKey, previousSecond);
                 else PlayerPrefs.DeleteKey(secondKey);
+                if (hadText) PlayerPrefs.SetString(textKey, previousText);
+                else PlayerPrefs.DeleteKey(textKey);
                 PlayerPrefs.Save();
             }
         }
@@ -159,6 +168,128 @@ namespace StarfallAcademy.Lobby
         }
     }
 
+    /// <summary>
+    /// PlayerPrefs cannot enumerate keys on every supported platform. Dynamic player-data
+    /// producers therefore keep a prefix-validated manifest so editor backup/reset tools can
+    /// discover exactly the keys created by the game without touching unrelated preferences.
+    /// Manifest entries are intentionally allowed to outlive a deleted value; stale entries are
+    /// harmless and make rollback/recovery safer than accidentally forgetting a committed key.
+    /// </summary>
+    public static class PlayerDataKeyManifest
+    {
+        public const string ItemKeysManifest =
+            "StarfallAcademy.Meta.KeyManifest.ItemInventory.v1";
+        public const string RewardTransactionKeysManifest =
+            "StarfallAcademy.Meta.KeyManifest.RewardTransactions.v1";
+        public const string ItemKeyPrefix = "StarfallAcademy.Inventory.Item.";
+        public const string RewardTransactionKeyPrefix =
+            "StarfallAcademy.Meta.Reward.Transaction.";
+
+        static readonly object SyncRoot = new object();
+
+        [Serializable]
+        sealed class Manifest
+        {
+            public int version = 1;
+            public List<string> keys = new List<string>();
+        }
+
+        public static void TrackItemKey(IMetaStorage storage, string key) =>
+            Track(storage, ItemKeysManifest, ItemKeyPrefix, key);
+
+        public static void TrackRewardTransactionKey(IMetaStorage storage, string key) =>
+            Track(storage, RewardTransactionKeysManifest, RewardTransactionKeyPrefix, key);
+
+        public static IReadOnlyList<string> GetItemKeys(IMetaStorage storage) =>
+            Read(storage, ItemKeysManifest, ItemKeyPrefix);
+
+        public static IReadOnlyList<string> GetRewardTransactionKeys(IMetaStorage storage) =>
+            Read(storage, RewardTransactionKeysManifest, RewardTransactionKeyPrefix);
+
+        public static void ReplaceItemKeys(IMetaStorage storage, IEnumerable<string> keys) =>
+            Replace(storage, ItemKeysManifest, ItemKeyPrefix, keys);
+
+        public static void ReplaceRewardTransactionKeys(IMetaStorage storage,
+            IEnumerable<string> keys) =>
+            Replace(storage, RewardTransactionKeysManifest,
+                RewardTransactionKeyPrefix, keys);
+
+        static void Track(IMetaStorage storage, string manifestKey, string requiredPrefix,
+            string key)
+        {
+            if (storage == null) throw new ArgumentNullException(nameof(storage));
+            if (!IsAllowed(key, requiredPrefix))
+                throw new ArgumentException("The dynamic player-data key has an invalid prefix.",
+                    nameof(key));
+
+            lock (SyncRoot)
+            {
+                List<string> keys = ReadMutable(storage, manifestKey, requiredPrefix);
+                if (keys.Contains(key)) return;
+                keys.Add(key);
+                Write(storage, manifestKey, keys);
+            }
+        }
+
+        static IReadOnlyList<string> Read(IMetaStorage storage, string manifestKey,
+            string requiredPrefix)
+        {
+            if (storage == null) throw new ArgumentNullException(nameof(storage));
+            lock (SyncRoot)
+                return ReadMutable(storage, manifestKey, requiredPrefix).ToArray();
+        }
+
+        static void Replace(IMetaStorage storage, string manifestKey, string requiredPrefix,
+            IEnumerable<string> keys)
+        {
+            if (storage == null) throw new ArgumentNullException(nameof(storage));
+            lock (SyncRoot)
+            {
+                var filtered = new SortedSet<string>(StringComparer.Ordinal);
+                if (keys != null)
+                {
+                    foreach (string key in keys)
+                        if (IsAllowed(key, requiredPrefix)) filtered.Add(key);
+                }
+                if (filtered.Count == 0) storage.DeleteKey(manifestKey);
+                else Write(storage, manifestKey, new List<string>(filtered));
+            }
+        }
+
+        static List<string> ReadMutable(IMetaStorage storage, string manifestKey,
+            string requiredPrefix)
+        {
+            string json = storage.GetString(manifestKey, string.Empty);
+            Manifest manifest = null;
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                try { manifest = JsonUtility.FromJson<Manifest>(json); }
+                catch (Exception) { }
+            }
+
+            var result = new SortedSet<string>(StringComparer.Ordinal);
+            if (manifest?.keys != null)
+            {
+                for (int i = 0; i < manifest.keys.Count; i++)
+                {
+                    string key = manifest.keys[i];
+                    if (IsAllowed(key, requiredPrefix)) result.Add(key);
+                }
+            }
+            return new List<string>(result);
+        }
+
+        static void Write(IMetaStorage storage, string manifestKey, List<string> keys)
+        {
+            keys.Sort(StringComparer.Ordinal);
+            storage.SetString(manifestKey, JsonUtility.ToJson(new Manifest { keys = keys }));
+        }
+
+        static bool IsAllowed(string key, string requiredPrefix) =>
+            !string.IsNullOrWhiteSpace(key)
+            && key.StartsWith(requiredPrefix, StringComparison.Ordinal);
+    }
+
     public interface IUtcClock
     {
         DateTime UtcNow { get; }
@@ -213,6 +344,20 @@ namespace StarfallAcademy.Lobby
         public int Value { get; }
     }
 
+    internal readonly struct MetaStringWrite
+    {
+        public MetaStringWrite(string key, string value)
+        {
+            if (string.IsNullOrEmpty(key))
+                throw new ArgumentException("A PlayerPrefs key is required.", nameof(key));
+            Key = key;
+            Value = value ?? string.Empty;
+        }
+
+        public string Key { get; }
+        public string Value { get; }
+    }
+
     // PlayerPrefs cannot atomically commit multiple keys. This write-ahead journal makes
     // multi-key meta transactions recoverable: once the journal is durable, recovery
     // always rolls the complete transaction forward before any meta value is read.
@@ -234,6 +379,8 @@ namespace StarfallAcademy.Lobby
         {
             public string key;
             public int value;
+            public bool isString;
+            public string stringValue;
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -259,9 +406,15 @@ namespace StarfallAcademy.Lobby
             }
         }
 
-        public static bool Commit(IReadOnlyList<MetaIntWrite> writes)
+        public static bool Commit(IReadOnlyList<MetaIntWrite> writes) =>
+            Commit(writes, null);
+
+        public static bool Commit(IReadOnlyList<MetaIntWrite> intWrites,
+            IReadOnlyList<MetaStringWrite> stringWrites)
         {
-            if (writes == null || writes.Count == 0) return true;
+            if ((intWrites == null || intWrites.Count == 0)
+                && (stringWrites == null || stringWrites.Count == 0))
+                return true;
 
             lock (SyncRoot)
             {
@@ -270,7 +423,7 @@ namespace StarfallAcademy.Lobby
                 try
                 {
                     RecoverPendingWithoutLock();
-                    journal = CreateJournal(writes);
+                    journal = CreateJournal(intWrites, stringWrites);
                     if (journal.entries.Count == 0) return true;
 
                     PlayerPrefs.SetString(JournalKey, JsonUtility.ToJson(journal));
@@ -315,24 +468,46 @@ namespace StarfallAcademy.Lobby
             }
         }
 
-        static Journal CreateJournal(IReadOnlyList<MetaIntWrite> writes)
+        static Journal CreateJournal(IReadOnlyList<MetaIntWrite> intWrites,
+            IReadOnlyList<MetaStringWrite> stringWrites)
         {
-            var valuesByKey = new Dictionary<string, int>(StringComparer.Ordinal);
+            var entriesByKey = new Dictionary<string, Entry>(StringComparer.Ordinal);
             var keyOrder = new List<string>();
-            for (int i = 0; i < writes.Count; i++)
+            if (intWrites != null)
             {
-                MetaIntWrite write = writes[i];
-                if (string.IsNullOrEmpty(write.Key)) continue;
-                if (!valuesByKey.ContainsKey(write.Key)) keyOrder.Add(write.Key);
-                valuesByKey[write.Key] = write.Value;
+                for (int i = 0; i < intWrites.Count; i++)
+                {
+                    MetaIntWrite write = intWrites[i];
+                    if (string.IsNullOrEmpty(write.Key)) continue;
+                    if (!entriesByKey.ContainsKey(write.Key)) keyOrder.Add(write.Key);
+                    entriesByKey[write.Key] = new Entry
+                    {
+                        key = write.Key,
+                        value = write.Value,
+                        isString = false,
+                        stringValue = string.Empty
+                    };
+                }
+            }
+            if (stringWrites != null)
+            {
+                for (int i = 0; i < stringWrites.Count; i++)
+                {
+                    MetaStringWrite write = stringWrites[i];
+                    if (string.IsNullOrEmpty(write.Key)) continue;
+                    if (!entriesByKey.ContainsKey(write.Key)) keyOrder.Add(write.Key);
+                    entriesByKey[write.Key] = new Entry
+                    {
+                        key = write.Key,
+                        isString = true,
+                        stringValue = write.Value ?? string.Empty
+                    };
+                }
             }
 
             var journal = new Journal { transactionId = Guid.NewGuid().ToString("N") };
             for (int i = 0; i < keyOrder.Count; i++)
-            {
-                string key = keyOrder[i];
-                journal.entries.Add(new Entry { key = key, value = valuesByKey[key] });
-            }
+                journal.entries.Add(entriesByKey[keyOrder[i]]);
             return journal;
         }
 
@@ -359,9 +534,17 @@ namespace StarfallAcademy.Lobby
             {
                 Entry entry = journal.entries[i];
                 if (entry == null || string.IsNullOrEmpty(entry.key)) continue;
-                if (!PlayerPrefs.HasKey(entry.key)
-                    || PlayerPrefs.GetInt(entry.key, int.MinValue) != entry.value)
+                if (!PlayerPrefs.HasKey(entry.key)) return false;
+                if (entry.isString)
+                {
+                    if (PlayerPrefs.GetString(entry.key, string.Empty)
+                        != (entry.stringValue ?? string.Empty))
+                        return false;
+                }
+                else if (PlayerPrefs.GetInt(entry.key, int.MinValue) != entry.value)
+                {
                     return false;
+                }
             }
             return true;
         }
@@ -372,7 +555,10 @@ namespace StarfallAcademy.Lobby
             {
                 Entry entry = journal.entries[i];
                 if (entry == null || string.IsNullOrEmpty(entry.key)) continue;
-                PlayerPrefs.SetInt(entry.key, entry.value);
+                if (entry.isString)
+                    PlayerPrefs.SetString(entry.key, entry.stringValue ?? string.Empty);
+                else
+                    PlayerPrefs.SetInt(entry.key, entry.value);
             }
         }
     }

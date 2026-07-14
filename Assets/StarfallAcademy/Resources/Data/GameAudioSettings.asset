@@ -9,9 +9,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 0}
+  m_Script: {fileID: 11500000, guid: 4ef9a5cf73db4bd0af8209ad2d4c539a, type: 3}
   m_Name: GameAudioSettings
-  m_EditorClassIdentifier: Assembly-CSharp:StarfallAcademy.Lobby:GameAudioSettings
+  m_EditorClassIdentifier:
   lobbyBgm: {fileID: 0}
   formationBgm: {fileID: 0}
   gachaBgm: {fileID: 0}
@@ -19,6 +19,9 @@ MonoBehaviour:
   characterArchiveBgm: {fileID: 0}
   storyArchiveBgm: {fileID: 0}
   stageSelectBgm: {fileID: 0}
+  weeklyBossMenuBgm: {fileID: 0}
+  challengeTowerBgm: {fileID: 0}
+  mailInboxBgm: {fileID: 0}
   defaultBattleBgm: {fileID: 0}
   musicVolume: 1
   crossFadeSeconds: 0.6

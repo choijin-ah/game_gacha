@@ -7,17 +7,30 @@ namespace StarfallAcademy.Lobby
     public static class UrbanFantasyStyle
     {
         static Material monochromeMaterial;
-        public static readonly Color Backdrop = new Color(.003f, .003f, .006f, .86f);
-        public static readonly Color Panel = new Color(.012f, .012f, .018f, .88f);
-        public static readonly Color PanelSoft = new Color(.025f, .025f, .032f, .76f);
-        public static readonly Color PanelStrong = new Color(.035f, .034f, .043f, .96f);
-        public static readonly Color Silver = new Color(.88f, .88f, .91f, 1f);
-        public static readonly Color Muted = new Color(.80f, .80f, .84f, .58f);
-        public static readonly Color Line = new Color(.80f, .80f, .84f, .32f);
-        public static readonly Color StrongLine = new Color(.90f, .90f, .93f, .54f);
-        public static readonly Color Highlight = new Color(.92f, .92f, .95f, .15f);
-        public static readonly Color Alert = new Color(.72f, .045f, .04f, 1f);
-        public static readonly Color Gold = new Color(.84f, .73f, .49f, 1f);
+        public static readonly Color Backdrop = new Color(.015f, .025f, .065f, .90f);
+        public static readonly Color Panel = new Color(.035f, .055f, .12f, .90f);
+        public static readonly Color PanelSoft = new Color(.065f, .09f, .17f, .82f);
+        public static readonly Color PanelStrong = new Color(.075f, .095f, .19f, .97f);
+        public static readonly Color Silver = new Color(.94f, .95f, .99f, 1f);
+        public static readonly Color Muted = new Color(.65f, .68f, .77f, .72f);
+        public static readonly Color Line = new Color(.33f, .78f, .96f, .28f);
+        public static readonly Color StrongLine = new Color(.57f, .48f, 1f, .62f);
+        public static readonly Color Highlight = new Color(.33f, .84f, 1f, .16f);
+        public static readonly Color Alert = new Color(.90f, .22f, .34f, 1f);
+        public static readonly Color Gold = new Color(.91f, .79f, .47f, 1f);
+        public static readonly Color Violet = new Color(.55f, .42f, 1f, 1f);
+        public static readonly Color Cyan = new Color(.33f, .84f, 1f, 1f);
+        public static readonly Color Success = new Color(.25f, .84f, .64f, 1f);
+        public static readonly Color Warning = new Color(.94f, .61f, .26f, 1f);
+        public static readonly Color Danger = new Color(.94f, .30f, .36f, 1f);
+        public static readonly Color Info = new Color(.36f, .70f, 1f, 1f);
+
+        public static Color Rarity(int rarity)
+        {
+            if (rarity >= 5) return Gold;
+            if (rarity == 4) return Violet;
+            return new Color(.52f, .76f, .94f, 1f);
+        }
 
         public static void ApplyMonochrome(Image image)
         {

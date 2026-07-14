@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -15,6 +16,12 @@ namespace StarfallAcademy.Lobby
             VerifyDailyMissions();
             VerifyPlayerPrefsJournal();
             VerifyGachaRarityRules();
+            VerifyLiveOpsTransactions();
+            VerifyEquipmentEnhancementRollback();
+            VerifyEquipmentDropRollback();
+            VerifyFormationMutationRollback();
+            VerifyGachaHistoryRoundTrip();
+            VerifySaveVersionContract();
             Debug.Log("[Starfall Meta] 인메모리 핵심 경계 검증을 통과했습니다.");
         }
 
@@ -223,6 +230,289 @@ namespace StarfallAcademy.Lobby
                 "The cumulative gacha roll did not preserve the absolute 4-star rate.");
             Require(Math.Abs(three / (float)samples - .82f) < .005f,
                 "The cumulative gacha roll did not preserve the remaining 3-star rate.");
+        }
+
+        static void VerifyLiveOpsTransactions()
+        {
+            AttendanceCampaignData campaign = CreateAttendanceCampaign();
+            MailTemplateData template = CreateMailTemplate();
+            try
+            {
+                var clock = new ManualUtcClock(new DateTime(2026, 7, 14, 0, 0, 0,
+                    DateTimeKind.Utc));
+                var storage = new InMemoryMetaStorage();
+                var profile = new PlayerProfileService(storage);
+                var packageRewards = new RewardPackageService(storage, profile);
+                var attendance = new AttendanceService(storage, clock, packageRewards);
+                int creditsBefore = new RewardService(storage, profile).Credits;
+                AttendanceClaimResult attendanceClaim = attendance.Claim(campaign);
+                Require(attendanceClaim.Succeeded
+                    && new RewardService(storage, profile).Credits == creditsBefore + 1234,
+                    "Attendance reward/progress transaction failed.");
+                Require(!attendance.Claim(campaign).Succeeded,
+                    "Attendance allowed the same UTC-day claim twice.");
+
+                var failureStorage = new FailOnceSaveStorage();
+                var failureProfile = new PlayerProfileService(failureStorage);
+                var failureRewards = new RewardPackageService(failureStorage, failureProfile);
+                var failingAttendance = new AttendanceService(failureStorage, clock, failureRewards);
+                int failureCredits = new RewardService(failureStorage, failureProfile).Credits;
+                failingAttendance.GetProgress(campaign);
+                failureStorage.FailNextSave = true;
+                Require(!failingAttendance.Claim(campaign).Succeeded
+                    && new RewardService(failureStorage, failureProfile).Credits == failureCredits
+                    && failingAttendance.GetProgress(campaign).CurrentSequenceIndex == 0,
+                    "Attendance save failure did not roll back reward and progress together.");
+
+                var mailStorage = new InMemoryMetaStorage();
+                var mailProfile = new PlayerProfileService(mailStorage);
+                var mailRewards = new RewardPackageService(mailStorage, mailProfile);
+                var mail = new MailService(mailStorage, clock, mailRewards);
+                MailSendResult sent = mail.Send(template);
+                Require(sent.Succeeded && sent.Mail != null,
+                    "Diagnostic mail could not be sent.");
+                int mailCredits = new RewardService(mailStorage, mailProfile).Credits;
+                MailClaimResult claimed = mail.Claim(sent.Mail.MailInstanceId);
+                Require(sent.Succeeded && claimed.Succeeded
+                    && new RewardService(mailStorage, mailProfile).Credits == mailCredits + 4321
+                    && !mail.Claim(sent.Mail.MailInstanceId).Succeeded,
+                    "Mail claim was not idempotent.");
+
+                var failingMailStorage = new FailOnceSaveStorage();
+                var failingMailProfile = new PlayerProfileService(failingMailStorage);
+                var failingMailRewards = new RewardPackageService(failingMailStorage,
+                    failingMailProfile);
+                var failingMail = new MailService(failingMailStorage, clock,
+                    failingMailRewards);
+                MailSendResult failingSent = failingMail.Send(template);
+                Require(failingSent.Succeeded && failingSent.Mail != null,
+                    "Failure-path diagnostic mail could not be sent.");
+                int failingMailCredits = new RewardService(failingMailStorage,
+                    failingMailProfile).Credits;
+                failingMailStorage.FailNextSave = true;
+                Require(!failingMail.Claim(failingSent.Mail.MailInstanceId).Succeeded
+                    && new RewardService(failingMailStorage, failingMailProfile).Credits
+                        == failingMailCredits
+                    && !failingMail.GetMails()[0].IsClaimed,
+                    "Mail save failure did not roll back reward and claim marker together.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(campaign);
+                UnityEngine.Object.DestroyImmediate(template);
+            }
+        }
+
+        static void VerifyGachaHistoryRoundTrip()
+        {
+            string previous = GachaHistoryService.ExportJson(true);
+            try
+            {
+                Require(GachaHistoryService.TryImportJson(
+                    "{\"version\":1,\"entries\":[]}", out string importError),
+                    "Gacha history import failed: " + importError);
+                Require(GachaHistoryService.Load().Count == 0,
+                    "Gacha history did not load the imported empty snapshot.");
+                string exported = GachaHistoryService.ExportJson(true);
+                GachaHistoryService.Clear();
+                Require(GachaHistoryService.TryImportJson(exported, out string restoreError)
+                    && GachaHistoryService.Load().Count == 0,
+                    "Gacha history export/import round trip failed: " + restoreError);
+            }
+            finally
+            {
+                GachaHistoryService.TryImportJson(previous, out _);
+            }
+        }
+
+        static void VerifyEquipmentEnhancementRollback()
+        {
+            EquipmentDefinition definition = ScriptableObject.CreateInstance<EquipmentDefinition>();
+            EquipmentDatabase database = ScriptableObject.CreateInstance<EquipmentDatabase>();
+            try
+            {
+                var serialized = new SerializedObject(definition);
+                serialized.FindProperty("equipmentId").stringValue = "diagnostic_equipment";
+                serialized.FindProperty("displayName").stringValue = "Diagnostic Equipment";
+                serialized.FindProperty("maximumLevel").intValue = 5;
+                serialized.FindProperty("enhancementBaseCost").intValue = 100;
+                serialized.FindProperty("enhancementCostPerLevel").intValue = 10;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                database.Add(definition);
+
+                var storage = new FailOnceSaveStorage();
+                var inventory = new EquipmentInventoryService(storage);
+                EquipmentInstance item = inventory.Add(definition.Id, 1, "diagnostic-instance");
+                int creditsBefore = new RewardService(storage,
+                    new PlayerProfileService(storage)).Credits;
+                storage.FailNextSave = true;
+                var enhancement = new EquipmentEnhancementService(storage);
+                Require(!enhancement.TryEnhance(item.instanceId, database, out _)
+                    && inventory.GetAll()[0].level == 1
+                    && new RewardService(storage, new PlayerProfileService(storage)).Credits
+                        == creditsBefore,
+                    "Equipment enhancement save failure did not restore inventory and credits.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(definition);
+                UnityEngine.Object.DestroyImmediate(database);
+            }
+        }
+
+        static void VerifyEquipmentDropRollback()
+        {
+            EquipmentDefinition definition = ScriptableObject.CreateInstance<EquipmentDefinition>();
+            EquipmentDropTable table = ScriptableObject.CreateInstance<EquipmentDropTable>();
+            try
+            {
+                var definitionData = new SerializedObject(definition);
+                definitionData.FindProperty("equipmentId").stringValue =
+                    "diagnostic_drop_equipment";
+                definitionData.FindProperty("displayName").stringValue =
+                    "Diagnostic Drop Equipment";
+                definitionData.ApplyModifiedPropertiesWithoutUndo();
+
+                var tableData = new SerializedObject(table);
+                tableData.FindProperty("minimumDrops").intValue = 2;
+                tableData.FindProperty("maximumDrops").intValue = 2;
+                SerializedProperty candidates = tableData.FindProperty("candidates");
+                candidates.arraySize = 1;
+                SerializedProperty candidate = candidates.GetArrayElementAtIndex(0);
+                candidate.FindPropertyRelative("equipment").objectReferenceValue = definition;
+                candidate.FindPropertyRelative("weight").floatValue = 1f;
+                tableData.ApplyModifiedPropertiesWithoutUndo();
+
+                var storage = new FailOnceSaveStorage();
+                var inventory = new EquipmentInventoryService(storage);
+                var drops = new EquipmentDropService(inventory);
+                storage.FailNextSave = true;
+                bool threw = false;
+                try { drops.Grant("diagnostic-drop", table, 12345); }
+                catch (Exception) { threw = true; }
+                Require(threw && inventory.GetAll().Count == 0,
+                    "Equipment drop save failure left a partial inventory grant.");
+
+                IReadOnlyList<EquipmentInstance> granted =
+                    drops.Grant("diagnostic-drop", table, 12345);
+                Require(granted.Count == 2 && inventory.GetAll().Count == 2
+                    && granted[0].instanceId != granted[1].instanceId,
+                    "Equipment drop retry did not grant the deterministic batch.");
+                drops.Grant("diagnostic-drop", table, 12345);
+                Require(inventory.GetAll().Count == 2,
+                    "Equipment drop transaction retry created duplicate instances.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(definition);
+                UnityEngine.Object.DestroyImmediate(table);
+            }
+        }
+
+        static void VerifyFormationMutationRollback()
+        {
+            const string legacyKey = "StarfallAcademy.Formation";
+            var storage = new FailOnceSaveStorage();
+            var formations = new FormationPresetService(storage);
+            Require(formations.Rename(0, "Baseline"),
+                "Formation rollback diagnostic could not create its baseline.");
+            storage.SetString(legacyKey, "baseline-legacy");
+            storage.Save();
+            string baselinePresets = storage.GetString(FormationPresetService.StorageKey,
+                string.Empty);
+
+            storage.FailNextSave = true;
+            Require(!formations.Rename(0, "Changed")
+                && storage.GetString(FormationPresetService.StorageKey, string.Empty)
+                    == baselinePresets,
+                "Failed formation rename did not restore the preset snapshot.");
+
+            storage.FailNextSave = true;
+            Require(!formations.Select(1) && formations.ActivePresetIndex == 0,
+                "Failed formation selection changed the active preset.");
+
+            storage.FailNextSave = true;
+            Require(!formations.Save(0, Array.Empty<CharacterData>())
+                && storage.GetString(FormationPresetService.StorageKey, string.Empty)
+                    == baselinePresets
+                && storage.GetString(legacyKey, string.Empty) == "baseline-legacy",
+                "Failed formation member save did not restore both preset keys.");
+
+            storage.FailNextSave = true;
+            Require(!formations.TryImportJson(
+                    "{\"version\":1,\"activeIndex\":2,\"presets\":[]}", null, out _)
+                && storage.GetString(FormationPresetService.StorageKey, string.Empty)
+                    == baselinePresets,
+                "Failed formation import replaced the previous presets.");
+
+            storage.FailNextSave = true;
+            bool resetThrew = false;
+            try { formations.Reset(); }
+            catch (Exception) { resetThrew = true; }
+            Require(resetThrew
+                && storage.GetString(FormationPresetService.StorageKey, string.Empty)
+                    == baselinePresets
+                && storage.GetString(legacyKey, string.Empty) == "baseline-legacy",
+                "Failed formation reset did not restore both preset keys.");
+
+            var migrationStorage = new FailOnceSaveStorage();
+            migrationStorage.SetString(legacyKey, "legacy-a|legacy-b");
+            migrationStorage.Save();
+            migrationStorage.FailNextSave = true;
+            bool migrationThrew = false;
+            try { new FormationPresetService(migrationStorage).MigrateLegacyIfNeeded(); }
+            catch (Exception) { migrationThrew = true; }
+            Require(migrationThrew
+                && !migrationStorage.HasKey(FormationPresetService.StorageKey)
+                && migrationStorage.GetString(legacyKey, string.Empty)
+                    == "legacy-a|legacy-b",
+                "Failed formation migration did not restore the legacy snapshot.");
+        }
+
+        static void VerifySaveVersionContract()
+        {
+            Require(PlayerSaveVersion.LatestVersion >= 2,
+                "Save data version marker was not advanced for expanded content.");
+            var storage = new InMemoryMetaStorage();
+            storage.SetString("StarfallAcademy.Formation", "diagnostic-a|diagnostic-b");
+            var formations = new FormationPresetService(storage);
+            Require(formations.MigrateLegacyIfNeeded()
+                && storage.HasKey(FormationPresetService.StorageKey),
+                "Legacy formation was not migrated into versioned presets.");
+            formations.Reset();
+            Require(!storage.HasKey(FormationPresetService.StorageKey)
+                && !storage.HasKey("StarfallAcademy.Formation"),
+                "Formation reset left a legacy key that would remigrate immediately.");
+        }
+
+        static AttendanceCampaignData CreateAttendanceCampaign()
+        {
+            AttendanceCampaignData campaign = ScriptableObject.CreateInstance<AttendanceCampaignData>();
+            var serialized = new SerializedObject(campaign);
+            serialized.FindProperty("campaignId").stringValue = "diagnostic_attendance";
+            serialized.FindProperty("displayName").stringValue = "Diagnostic Attendance";
+            SerializedProperty days = serialized.FindProperty("days");
+            days.arraySize = 1;
+            SerializedProperty day = days.GetArrayElementAtIndex(0);
+            day.FindPropertyRelative("dayNumber").intValue = 1;
+            day.FindPropertyRelative("reward").FindPropertyRelative("currencyReward")
+                .FindPropertyRelative("credits").intValue = 1234;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return campaign;
+        }
+
+        static MailTemplateData CreateMailTemplate()
+        {
+            MailTemplateData template = ScriptableObject.CreateInstance<MailTemplateData>();
+            var serialized = new SerializedObject(template);
+            serialized.FindProperty("templateId").stringValue = "diagnostic_mail";
+            serialized.FindProperty("title").stringValue = "Diagnostic Mail";
+            serialized.FindProperty("body").stringValue = "Diagnostic body";
+            serialized.FindProperty("defaultExpiryHours").intValue = 24;
+            serialized.FindProperty("attachments").FindPropertyRelative("currencyReward")
+                .FindPropertyRelative("credits").intValue = 4321;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return template;
         }
 
         static void Require(bool condition, string message)

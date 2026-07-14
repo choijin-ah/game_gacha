@@ -7,13 +7,13 @@ namespace StarfallAcademy.Lobby
     public sealed class LobbyTheme
     {
         static Font cachedFont;
-        public readonly Color Navy = Hex("09090D");
-        public readonly Color Panel = Hex("17171D");
-        public readonly Color Cyan = Hex("D7D7DE");
-        public readonly Color Pink = Hex("B80C0A");
-        public readonly Color Gold = Hex("D0B478");
-        public readonly Color White = Hex("E9E9ED");
-        public readonly Color Muted = new Color(.82f, .82f, .86f, .58f);
+        public readonly Color Navy = Hex("070B18");
+        public readonly Color Panel = Hex("11182B");
+        public readonly Color Cyan = Hex("53D7FF");
+        public readonly Color Pink = Hex("E54863");
+        public readonly Color Gold = Hex("E7C878");
+        public readonly Color White = Hex("F0F2FA");
+        public readonly Color Muted = new Color(.65f, .68f, .77f, .72f);
         public readonly Font Font;
 
         public LobbyTheme()

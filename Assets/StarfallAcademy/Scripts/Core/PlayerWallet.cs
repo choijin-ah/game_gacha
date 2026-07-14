@@ -29,6 +29,15 @@ namespace StarfallAcademy.Lobby
         public static int Credits => GetOrCreate(CreditsKey, DefaultCredits);
         public static int SkillMaterials => GetOrCreate(SkillMaterialsKey, DefaultSkillMaterials);
 
+        public static void Reset()
+        {
+            MetaPlayerPrefsTransaction.RecoverPending();
+            PlayerPrefs.DeleteKey(PremiumCurrencyKey);
+            PlayerPrefs.DeleteKey(CreditsKey);
+            PlayerPrefs.DeleteKey(SkillMaterialsKey);
+            PlayerPrefs.Save();
+        }
+
         public static bool TrySpendPremiumCurrency(int amount)
         {
             var writes = new List<MetaIntWrite>(1);

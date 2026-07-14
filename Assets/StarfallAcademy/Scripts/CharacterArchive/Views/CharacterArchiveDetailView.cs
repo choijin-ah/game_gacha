@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -30,9 +31,11 @@ namespace StarfallAcademy.Lobby
         readonly Text skillButtonLabel;
         readonly Text equipmentPowerLabel;
         readonly Text recommendedEquipmentLabel;
+        readonly Text awakeningLabel;
         readonly Button levelButton;
         readonly Button skillButton;
         readonly Button recommendedEquipmentButton;
+        readonly Button awakeningButton;
         readonly Text[] equipmentSlotLabels = new Text[4];
         readonly Button[] equipmentSlotButtons = new Button[4];
         readonly EquipmentSlot[] equipmentSlots =
@@ -98,11 +101,18 @@ namespace StarfallAcademy.Lobby
             }
 
             GameObject recommendEquipment = ui.CreateButton("Recommended Equipment", equipment,
-                new Vector2(.5f, 0), new Vector2(0, 22), new Vector2(230, 36), string.Empty, 12,
+                new Vector2(.5f, 0), new Vector2(-132, 22), new Vector2(226, 36), string.Empty, 12,
                 new Color(.18f, .16f, .10f, .98f), EquipRecommended);
             UrbanFantasyStyle.AddBorder(ui, recommendEquipment.GetComponent<RectTransform>());
             recommendedEquipmentButton = recommendEquipment.GetComponent<Button>();
             recommendedEquipmentLabel = recommendEquipment.GetComponentInChildren<Text>();
+
+            GameObject awaken = ui.CreateButton("Awaken Character", equipment,
+                new Vector2(.5f, 0), new Vector2(132, 22), new Vector2(226, 36), string.Empty, 12,
+                new Color(.18f, .11f, .19f, .98f), Awaken);
+            UrbanFantasyStyle.AddBorder(ui, awaken.GetComponent<RectTransform>());
+            awakeningButton = awaken.GetComponent<Button>();
+            awakeningLabel = awaken.GetComponentInChildren<Text>();
 
             RectTransform info = ui.CreateImage("Character Information", panel,
                 new Color(.01f, .01f, .015f, .54f), new Vector2(1, .5f), new Vector2(1, .5f),
@@ -257,6 +267,37 @@ namespace StarfallAcademy.Lobby
         void EquipRecommended()
         {
             if (selected == null) return;
+            EquipmentDatabase database = Resources.Load<EquipmentDatabase>("Data/EquipmentDatabase");
+            IReadOnlyList<EquipmentInstance> items = EquipmentInventoryService.Default.GetAll();
+            if (database != null && items.Count > 0)
+            {
+                int equipped = 0;
+                for (int slotIndex = 0; slotIndex < equipmentSlots.Length; slotIndex++)
+                {
+                    EquipmentSlot slot = equipmentSlots[slotIndex];
+                    EquipmentInstance best = null;
+                    int bestPower = -1;
+                    for (int itemIndex = 0; itemIndex < items.Count; itemIndex++)
+                    {
+                        EquipmentInstance item = items[itemIndex];
+                        EquipmentDefinition definition = item == null
+                            ? null : database.FindEquipment(item.equipmentId);
+                        if (definition == null || definition.Slot != slot
+                            || (!string.IsNullOrEmpty(item.equippedCharacterId)
+                                && item.equippedCharacterId != selected.Id)) continue;
+                        int power = definition.EstimateCombatPower(item.level);
+                        if (power <= bestPower) continue;
+                        best = item;
+                        bestPower = power;
+                    }
+                    if (best != null && EquipmentInventoryService.Default.Equip(best.instanceId,
+                        selected, database, out _)) equipped++;
+                }
+                showToast?.Invoke(equipped > 0 ? "추천 장비를 장착했습니다."
+                    : "장착할 수 있는 장비가 없습니다.");
+                RefreshGrowth();
+                return;
+            }
             EquipmentService.TryEquipRecommended(selected, out string message);
             showToast?.Invoke(message);
             RefreshGrowth();
@@ -265,7 +306,24 @@ namespace StarfallAcademy.Lobby
         void UpgradeEquipment(EquipmentSlot slot)
         {
             if (selected == null) return;
+            if (TryGetEquippedInstance(slot, out EquipmentInstance instance,
+                out _, out EquipmentDatabase database))
+            {
+                var enhancement = new EquipmentEnhancementService(PlayerPrefsMetaStorage.Shared);
+                enhancement.TryEnhance(instance.instanceId, database, out string enhancementMessage);
+                showToast?.Invoke(enhancementMessage);
+                RefreshGrowth();
+                return;
+            }
             EquipmentService.TryUpgradeSlot(selected, slot, out string message);
+            showToast?.Invoke(message);
+            RefreshGrowth();
+        }
+
+        void Awaken()
+        {
+            if (selected == null) return;
+            CharacterAwakeningService.Default.TryAwaken(selected, out string message);
             showToast?.Invoke(message);
             RefreshGrowth();
         }
@@ -277,6 +335,8 @@ namespace StarfallAcademy.Lobby
                 levelGrowthLabel.text = skillGrowthLabel.text = walletLabel.text = string.Empty;
                 levelButtonLabel.text = skillButtonLabel.text = "—";
                 levelButton.interactable = skillButton.interactable = false;
+                awakeningLabel.text = "A W A K E N";
+                awakeningButton.interactable = false;
                 RefreshEquipment(false);
                 return;
             }
@@ -301,6 +361,16 @@ namespace StarfallAcademy.Lobby
                 CharacterProgressionService.GetSkillUpCost(selected).ToString("N0");
             levelButton.interactable = owned && !levelMax;
             skillButton.interactable = owned && !skillMax;
+            int awakeningStage = CharacterAwakeningService.Default.GetStage(selected);
+            int fragments = CharacterAwakeningService.Default.GetFragments(selected);
+            if (awakeningStage >= selected.AwakeningStages.Count)
+                awakeningLabel.text = "AWAKEN " + awakeningStage + "  ·  MAX";
+            else
+                awakeningLabel.text = "AWAKEN " + awakeningStage + " → " + (awakeningStage + 1)
+                    + "  ·  " + fragments + "/"
+                    + selected.AwakeningStages[awakeningStage].RequiredFragments;
+            awakeningButton.interactable = owned
+                && CharacterAwakeningService.Default.CanAwaken(selected, out _);
             RefreshEquipment(owned);
         }
 
@@ -341,6 +411,16 @@ namespace StarfallAcademy.Lobby
             for (int i = 0; i < equipmentSlots.Length; i++)
             {
                 EquipmentSlot slot = equipmentSlots[i];
+                if (TryGetEquippedInstance(slot, out EquipmentInstance instance,
+                    out EquipmentDefinition definition, out _))
+                {
+                    bool instanceMax = instance.level >= definition.MaximumLevel;
+                    equipmentSlotLabels[i].text = definition.DisplayName + "  LV." + instance.level + "\n"
+                        + (instanceMax ? "MAX" : "강화  "
+                            + definition.GetEnhancementCost(instance.level).ToString("N0"));
+                    equipmentSlotButtons[i].interactable = owned && !instanceMax;
+                    continue;
+                }
                 int equipmentLevel = EquipmentService.GetLevel(selected, slot);
                 string slotName = EquipmentService.GetSlotDisplayName(slot);
                 if (!owned)
@@ -366,6 +446,25 @@ namespace StarfallAcademy.Lobby
 
             recommendedEquipmentLabel.text = hasEmptySlot ? "추천 일괄 장착" : "장착 완료";
             recommendedEquipmentButton.interactable = owned && hasEmptySlot;
+        }
+
+        bool TryGetEquippedInstance(EquipmentSlot slot, out EquipmentInstance instance,
+            out EquipmentDefinition definition, out EquipmentDatabase database)
+        {
+            instance = null;
+            definition = null;
+            database = Resources.Load<EquipmentDatabase>("Data/EquipmentDatabase");
+            if (selected == null || database == null) return false;
+            IReadOnlyList<EquipmentInstance> equipped = EquipmentInventoryService.Default.GetEquipped(selected);
+            for (int i = 0; i < equipped.Count; i++)
+            {
+                EquipmentDefinition candidate = database.FindEquipment(equipped[i].equipmentId);
+                if (candidate == null || candidate.Slot != slot) continue;
+                instance = equipped[i];
+                definition = candidate;
+                return true;
+            }
+            return false;
         }
 
         static Text CreateField(LobbyUiFactory ui, RectTransform parent, string label, float y)

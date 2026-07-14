@@ -11,6 +11,7 @@ namespace StarfallAcademy.Lobby
         GameObject box;
         CanvasGroup group;
         Text label;
+        Image accent;
         Coroutine animation;
 
         public void Initialize(RectTransform parent, LobbyUiFactory ui)
@@ -27,6 +28,9 @@ namespace StarfallAcademy.Lobby
             box = image.gameObject;
             group = box.AddComponent<CanvasGroup>();
             group.blocksRaycasts = false;
+            accent = ui.CreateImage("Toast Accent", box.transform, UrbanFantasyStyle.Cyan,
+                new Vector2(0, 0), new Vector2(0, 1), new Vector2(3, 0),
+                new Vector2(4, -14));
             label = ui.CreateText("Toast Message", string.Empty, box.transform, 17, FontStyle.Normal,
                 UrbanFantasyStyle.Silver,
                 Vector2.zero, Vector2.one, Vector2.zero, new Vector2(-36, 0), TextAnchor.MiddleCenter);
@@ -35,7 +39,23 @@ namespace StarfallAcademy.Lobby
 
         public void Show(string message)
         {
+            Show(message, StarfallStatusTone.Info);
+        }
+
+        public void Show(string message, StarfallStatusTone tone)
+        {
             if (animation != null) StopCoroutine(animation);
+            if (accent != null)
+            {
+                accent.color = tone switch
+                {
+                    StarfallStatusTone.Success => UrbanFantasyStyle.Success,
+                    StarfallStatusTone.Warning => UrbanFantasyStyle.Warning,
+                    StarfallStatusTone.Danger => UrbanFantasyStyle.Danger,
+                    StarfallStatusTone.Premium => UrbanFantasyStyle.Gold,
+                    _ => UrbanFantasyStyle.Cyan
+                };
+            }
             box.transform.SetAsLastSibling();
             animation = StartCoroutine(Animate(message));
         }
